@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -18,22 +19,22 @@ import { useAuth } from '../../context/AuthContext';
 export default function AddPropertyScreen() {
   const navigation = useNavigation();
   const { profile } = useAuth();
-
-  // Use refs so typing never triggers a re-render (fixes keyboard dismissal on new arch)
-  const form = useRef({ name: '', address: '', city: 'Fort Myers', state: 'FL', zip: '', notes: '' });
-
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('Fort Myers');
+  const [state, setState] = useState('FL');
+  const [zip, setZip] = useState('');
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
-    const { name, address, city, state, zip, notes } = form.current;
     if (!name.trim() || !address.trim()) {
       setError('Property name and address are required.');
       return;
     }
     setSaving(true);
     setError(null);
-
     const { error: err } = await supabase.from('properties').insert({
       name: name.trim(),
       address: address.trim(),
@@ -43,19 +44,13 @@ export default function AddPropertyScreen() {
       notes: notes.trim() || null,
       created_by: profile?.id,
     });
-
-    if (err) {
-      setError(err.message);
-      setSaving(false);
-      return;
-    }
-
+    if (err) { setError(err.message); setSaving(false); return; }
     navigation.goBack();
   }
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Custom header — replaces stack header to avoid keyboard focus resets */}
+      {/* Custom header */}
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={Colors.primary} />
@@ -64,118 +59,120 @@ export default function AddPropertyScreen() {
         <Text style={styles.navTitle}>Add Property</Text>
         <View style={{ width: 60 }} />
       </View>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="none"
-        automaticallyAdjustKeyboardInsets
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        <View style={styles.form}>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Property Name *</Text>
-          <TextInput
-            style={styles.input}
-            defaultValue=""
-            onChangeText={(v) => { form.current.name = v; }}
-            placeholder="e.g. Sunset Villas"
-            placeholderTextColor={Colors.textMuted}
-            autoCapitalize="words"
-          />
-        </View>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Property Name *</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Sunset Villas"
+              placeholderTextColor={Colors.textMuted}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Street Address *</Text>
-          <TextInput
-            style={styles.input}
-            defaultValue=""
-            onChangeText={(v) => { form.current.address = v; }}
-            placeholder="e.g. 1420 Palm Beach Blvd"
-            placeholderTextColor={Colors.textMuted}
-            autoCapitalize="words"
-          />
-        </View>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Street Address *</Text>
+            <TextInput
+              style={styles.input}
+              value={address}
+              onChangeText={setAddress}
+              placeholder="e.g. 1420 Palm Beach Blvd"
+              placeholderTextColor={Colors.textMuted}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+          </View>
 
-        <View style={styles.row}>
-          <View style={{ flex: 2 }}>
-            <View style={styles.fieldGroup}>
+          <View style={styles.row}>
+            <View style={{ flex: 2 }}>
               <Text style={styles.label}>City</Text>
               <TextInput
                 style={styles.input}
-                defaultValue="Fort Myers"
-                onChangeText={(v) => { form.current.city = v; }}
+                value={city}
+                onChangeText={setCity}
                 placeholder="Fort Myers"
                 placeholderTextColor={Colors.textMuted}
                 autoCapitalize="words"
+                returnKeyType="next"
               />
             </View>
-          </View>
-          <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-            <View style={styles.fieldGroup}>
+            <View style={{ flex: 1, marginLeft: Spacing.sm }}>
               <Text style={styles.label}>State</Text>
               <TextInput
                 style={styles.input}
-                defaultValue="FL"
-                onChangeText={(v) => { form.current.state = v; }}
+                value={state}
+                onChangeText={setState}
                 placeholder="FL"
                 placeholderTextColor={Colors.textMuted}
                 autoCapitalize="characters"
                 maxLength={2}
+                returnKeyType="next"
               />
             </View>
-          </View>
-          <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-            <View style={styles.fieldGroup}>
+            <View style={{ flex: 1, marginLeft: Spacing.sm }}>
               <Text style={styles.label}>ZIP</Text>
               <TextInput
                 style={styles.input}
-                defaultValue=""
-                onChangeText={(v) => { form.current.zip = v; }}
+                value={zip}
+                onChangeText={setZip}
                 placeholder="33901"
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="numeric"
                 maxLength={5}
+                returnKeyType="next"
               />
             </View>
           </View>
-        </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Notes (optional)</Text>
-          <TextInput
-            style={[styles.input, styles.inputMultiline]}
-            defaultValue=""
-            onChangeText={(v) => { form.current.notes = v; }}
-            placeholder="Any special notes about this property..."
-            placeholderTextColor={Colors.textMuted}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {error && (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Notes (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Any special notes..."
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              returnKeyType="done"
+            />
           </View>
-        )}
 
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.7 }]}
-          onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>Save Property</Text>
-            </>
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
           )}
-        </TouchableOpacity>
-      </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={20} color="#fff" />
+                <Text style={styles.saveBtnText}>Save Property</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -195,8 +192,8 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', width: 60 },
   backLabel: { color: Colors.primary, fontSize: 16 },
   navTitle: { ...Typography.h3, textAlign: 'center' },
-  scroll: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  row: { flexDirection: 'row' },
+  form: { flex: 1, padding: Spacing.md },
+  row: { flexDirection: 'row', marginBottom: Spacing.md },
   fieldGroup: { marginBottom: Spacing.md },
   label: { ...Typography.label, marginBottom: 6 },
   input: {
@@ -209,7 +206,7 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textPrimary,
   },
-  inputMultiline: { height: 88, textAlignVertical: 'top' },
+  inputMultiline: { height: 80, textAlignVertical: 'top' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
