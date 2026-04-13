@@ -174,8 +174,23 @@ export default function ConductInspectionScreen() {
         `${pending.length} item(s) are still pending. Submit anyway?`,
         [
           { text: 'Go Back', style: 'cancel' },
-          { text: 'Submit Anyway', onPress: () => doSubmit() },
+          { text: 'Submit Anyway', onPress: () => validatePhotos() },
         ],
+      );
+      return;
+    }
+    validatePhotos();
+  }
+
+  function validatePhotos() {
+    const missingPhotos = checklistItems.filter(
+      (i) => i.status !== 'na' && i.status !== 'pending' && photosForItem(i.id).length === 0,
+    );
+    if (missingPhotos.length > 0) {
+      Alert.alert(
+        'Photos Required',
+        `${missingPhotos.length} item(s) need a photo. Tap the camera button on each inspected item before submitting.`,
+        [{ text: 'OK' }],
       );
       return;
     }
@@ -279,6 +294,7 @@ export default function ConductInspectionScreen() {
                       status={item.status}
                       notes={item.notes}
                       photoCount={photosForItem(item.id).length}
+                      photoRequired={item.status !== 'na' && item.status !== 'pending' && photosForItem(item.id).length === 0}
                       onChange={(status, notes) => handleItemChange(item.id, status, notes)}
                       onAddPhoto={() => handleAddPhoto(item.id)}
                     />

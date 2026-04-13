@@ -18,6 +18,7 @@ interface Props {
   onChange: (status: ChecklistStatus, notes: string) => void;
   onAddPhoto: () => void;
   disabled?: boolean;
+  photoRequired?: boolean;
 }
 
 const STATUS_OPTIONS: { key: ChecklistStatus; label: string; color: string; bg: string }[] = [
@@ -34,6 +35,7 @@ export default function ChecklistItemRow({
   onChange,
   onAddPhoto,
   disabled = false,
+  photoRequired = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [localNotes, setLocalNotes] = useState(notes);
@@ -103,14 +105,21 @@ export default function ChecklistItemRow({
 
         {/* Photo button */}
         <TouchableOpacity
-          style={styles.photoBtn}
+          style={[styles.photoBtn, photoRequired && styles.photoBtnRequired]}
           onPress={onAddPhoto}
           disabled={disabled}
           activeOpacity={0.8}
         >
-          <Ionicons name="camera-outline" size={16} color={Colors.primary} />
+          <Ionicons
+            name="camera"
+            size={16}
+            color={photoRequired ? Colors.danger : photoCount > 0 ? Colors.success : Colors.primary}
+          />
+          {photoRequired && (
+            <Text style={styles.photoRequiredLabel}>Required</Text>
+          )}
           {photoCount > 0 && (
-            <View style={styles.photoBadge}>
+            <View style={[styles.photoBadge, { backgroundColor: Colors.success }]}>
               <Text style={styles.photoBadgeText}>{photoCount}</Text>
             </View>
           )}
@@ -188,17 +197,32 @@ const styles = StyleSheet.create({
   },
   photoBtn: {
     marginLeft: 'auto',
-    padding: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
     position: 'relative',
+  },
+  photoBtnRequired: {
+    borderColor: Colors.danger,
+    backgroundColor: Colors.danger + '10',
+  },
+  photoRequiredLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.danger,
   },
   photoBadge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: Colors.accent,
+    top: -4,
+    right: -4,
     borderRadius: Radius.full,
-    width: 14,
-    height: 14,
+    width: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
