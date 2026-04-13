@@ -1,10 +1,10 @@
-import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { registerForPushNotifications, savePushToken } from './src/lib/notifications';
+import { initNotifications, registerForPushNotifications, savePushToken } from './src/lib/notifications';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function PushNotificationRegistrar() {
@@ -21,15 +21,21 @@ function PushNotificationRegistrar() {
 }
 
 export default function App() {
+  useEffect(() => {
+    initNotifications();
+  }, []);
+
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <NavigationContainer>
-          <PushNotificationRegistrar />
-          <StatusBar style="auto" />
-          <AppNavigator />
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <PushNotificationRegistrar />
+            <StatusBar style="auto" />
+            <AppNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
