@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Property Inspect",
+    "slug": "property-inspection-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A5F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourcompany.propertyinspect",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to take photos during property inspections.",
+        "NSPhotoLibraryUsageDescription": "Used to attach photos to inspection reports.",
+        "NSPhotoLibraryAddUsageDescription": "Used to save inspection photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E3A5F"
+      },
+      "package": "com.yourcompany.propertyinspect",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E3A5F",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Property Inspect to access your photos for inspection reports.",
+          "cameraPermission": "Allow Property Inspect to use the camera for property photos."
+        }
+      ]
+    ]
+  }
+}
