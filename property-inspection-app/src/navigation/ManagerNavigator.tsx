@@ -5,6 +5,7 @@ import { ManagerStackParamList } from '../types';
 import DashboardScreen from '../screens/manager/DashboardScreen';
 import PropertyDetailScreen from '../screens/manager/PropertyDetailScreen';
 import AddPropertyScreen from '../screens/manager/AddPropertyScreen';
+import ConductInspectionScreen from '../screens/inspector/ConductInspectionScreen';
 import InspectionDetailScreen from '../screens/manager/InspectionDetailScreen';
 import IssuesScreen from '../screens/manager/IssuesScreen';
 
@@ -39,6 +40,11 @@ export default function ManagerNavigator() {
         name="AddProperty"
         component={AddPropertyScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ConductInspection"
+        component={ConductInspectionScreen}
+        options={{ title: 'Inspection Checklist' }}
       />
       <Stack.Screen
         name="InspectionDetail"

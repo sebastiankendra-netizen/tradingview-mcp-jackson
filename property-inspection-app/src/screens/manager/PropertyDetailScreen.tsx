@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { Colors, Radius, Shadow, Spacing, Typography } from '../../lib/theme';
 import { CONDITION_COLORS, CONDITION_LABELS } from '../../data/checklist';
 import IssueCard from '../../components/IssueCard';
@@ -29,11 +30,14 @@ export default function PropertyDetailScreen() {
   const navigation = useNavigation<Nav>();
   const { propertyId } = route.params;
 
+  const { profile } = useAuth();
+
   const [property, setProperty] = useState<Property | null>(null);
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [assignedInspectors, setAssignedInspectors] = useState<Profile[]>([]);
   const [allInspectors, setAllInspectors] = useState<Profile[]>([]);
+  const [inProgressInspectionId, setInProgressInspectionId] = useState<string | undefined>();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -73,6 +77,13 @@ export default function PropertyDetailScreen() {
       .map((a: any) => a.profiles)
       .filter(Boolean) as Profile[];
     setAssignedInspectors(assigned);
+
+    // Check if the current user has an in-progress inspection for this property
+    const myInProgress = (insp ?? []).find(
+      (i: any) => i.status === 'in_progress',
+    );
+    setInProgressInspectionId(myInProgress?.id);
+
     setLoading(false);
   }, [propertyId]);
 
@@ -105,6 +116,42 @@ export default function PropertyDetailScreen() {
       setAssignedInspectors((prev) => [...prev, inspector]);
     }
     setAssigning(false);
+  }
+
+  async function startInspection() {
+    if (!profile) return;
+
+    if (inProgressInspectionId) {
+      navigation.navigate('ConductInspection', {
+        propertyId,
+        inspectionId: inProgressInspectionId,
+      });
+      return;
+    }
+
+    Alert.alert(
+      'Start Inspection',
+      `Start a new inspection for ${property?.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start',
+          onPress: async () => {
+            const { data, error } = await supabase
+              .from('inspections')
+              .insert({ property_id: propertyId, inspector_id: profile.id, status: 'in_progress' })
+              .select()
+              .single();
+            if (error || !data) {
+              Alert.alert('Error', error?.message ?? 'Could not create inspection.');
+              return;
+            }
+            setInProgressInspectionId(data.id);
+            navigation.navigate('ConductInspection', { propertyId, inspectionId: data.id });
+          },
+        },
+      ],
+    );
   }
 
   async function toggleIssueStatus(issue: MaintenanceIssue) {
@@ -210,6 +257,22 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.summaryLabel}>Last Score</Text>
                 </View>
               </View>
+
+              {/* Start / Resume inspection button */}
+              <TouchableOpacity
+                style={[styles.inspectBtn, inProgressInspectionId && styles.inspectBtnResume]}
+                onPress={startInspection}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={inProgressInspectionId ? 'play-circle' : 'clipboard'}
+                  size={18}
+                  color="#fff"
+                />
+                <Text style={styles.inspectBtnText}>
+                  {inProgressInspectionId ? 'Resume Inspection' : 'Start Inspection'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Assigned inspectors */}
@@ -339,6 +402,9 @@ const styles = StyleSheet.create({
   summaryDivider: { width: 1, backgroundColor: Colors.border },
   summaryValue: { fontSize: 22, fontWeight: '800', color: Colors.primary },
   summaryLabel: { ...Typography.caption, marginTop: 2 },
+  inspectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.primary, borderRadius: Radius.md, height: 48, marginTop: Spacing.md },
+  inspectBtnResume: { backgroundColor: Colors.accent },
+  inspectBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   section: { marginBottom: Spacing.md },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   sectionTitle: { ...Typography.h3 },
