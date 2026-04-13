@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { Colors, Radius, Shadow, Spacing, Typography } from '../lib/theme';
-import { MaintenanceIssue } from '../types';
+import { MaintenanceIssue, PRIORITY_COLORS, PRIORITY_LABELS } from '../types';
 
 interface Props {
   issue: MaintenanceIssue;
@@ -48,6 +48,18 @@ export default function IssueCard({ issue, onPress, onToggleStatus, showProperty
           >
             {issue.title}
           </Text>
+
+          {/* Priority badge */}
+          {isOpen && issue.priority && issue.priority !== 'medium' && (
+            <View style={[
+              styles.priorityPill,
+              { backgroundColor: PRIORITY_COLORS[issue.priority] + '20' },
+            ]}>
+              <Text style={[styles.priorityText, { color: PRIORITY_COLORS[issue.priority] }]}>
+                {PRIORITY_LABELS[issue.priority]}
+              </Text>
+            </View>
+          )}
 
           {showProperty && issue.property && (
             <View style={styles.metaRow}>
@@ -115,6 +127,19 @@ const styles = StyleSheet.create({
   titleDone: {
     textDecorationLine: 'line-through',
     color: Colors.textMuted,
+  },
+  priorityPill: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  priorityText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   metaRow: {
     flexDirection: 'row',

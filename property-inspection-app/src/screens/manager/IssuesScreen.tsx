@@ -13,13 +13,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import IssueCard from '../../components/IssueCard';
-import { MaintenanceIssue } from '../../types';
+import { IssuePriority, MaintenanceIssue, PRIORITY_COLORS, PRIORITY_LABELS } from '../../types';
 
 type Filter = 'open' | 'done' | 'all';
+type PriorityFilter = 'all' | IssuePriority;
 
 export default function IssuesScreen() {
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [filter, setFilter] = useState<Filter>('open');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,8 +63,9 @@ export default function IssuesScreen() {
   }
 
   const filtered = issues.filter((i) => {
-    if (filter === 'all') return true;
-    return i.status === filter;
+    const statusMatch = filter === 'all' || i.status === filter;
+    const priorityMatch = priorityFilter === 'all' || i.priority === priorityFilter;
+    return statusMatch && priorityMatch;
   });
 
   const openCount = issues.filter((i) => i.status === 'open').length;
@@ -97,12 +100,37 @@ export default function IssuesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      {/* Filter tabs */}
+      {/* Status filter tabs */}
       <View style={styles.filterRow}>
         <FilterBtn value="open" label="Open" count={openCount} />
         <FilterBtn value="done" label="Done" count={doneCount} />
         <FilterBtn value="all" label="All" count={issues.length} />
       </View>
+
+      {/* Priority filter chips (only when viewing open issues) */}
+      {filter !== 'done' && (
+        <View style={styles.priorityRow}>
+          {(['all', 'urgent', 'high', 'medium', 'low'] as const).map((p) => {
+            const active = priorityFilter === p;
+            const color = p === 'all' ? Colors.primary : PRIORITY_COLORS[p as IssuePriority];
+            return (
+              <TouchableOpacity
+                key={p}
+                style={[
+                  styles.priorityChip,
+                  active && { backgroundColor: color + '20', borderColor: color },
+                ]}
+                onPress={() => setPriorityFilter(p)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.priorityChipText, active && { color }]}>
+                  {p === 'all' ? 'All Priority' : PRIORITY_LABELS[p as IssuePriority]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       <FlatList
         data={filtered}
@@ -174,6 +202,22 @@ const styles = StyleSheet.create({
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
   filterBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
   filterBadgeTextActive: { color: '#fff' },
+  priorityRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  priorityChip: {
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: Colors.surface,
+  },
+  priorityChipText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
   list: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },

@@ -137,10 +137,12 @@ export default function ConductInspectionScreen() {
         const path = `${inspectionId}/${photo.checklistItemId}/${Date.now()}.${ext}`;
         await uploadPhoto('inspection-photos', path, photo.uri);
 
-        // Save to db
+        // Save to db — inspection_id is NOT NULL in schema
         await supabase.from('item_photos').insert({
           checklist_item_id: photo.checklistItemId,
+          inspection_id: inspectionId,
           storage_path: path,
+          uploaded_by: profile?.id,
         });
 
         photo.uploaded = true;
@@ -205,6 +207,7 @@ export default function ConductInspectionScreen() {
           checklist_item_id: item.id,
           title: `${item.category}: ${item.item_name}`,
           description: item.notes ?? null,
+          priority: 'medium',   // default; manager can escalate
           status: 'open',
           created_by: profile?.id,
         });
