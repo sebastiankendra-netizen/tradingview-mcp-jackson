@@ -38,7 +38,7 @@ export default function ManagerNavigator() {
       <Stack.Screen
         name="AddProperty"
         component={AddPropertyScreen}
-        options={{ title: 'Add Property' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="InspectionDetail"

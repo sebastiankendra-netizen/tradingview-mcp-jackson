@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -53,7 +54,16 @@ export default function AddPropertyScreen() {
   }
 
   return (
-    <View style={styles.safe}>
+    <SafeAreaView style={styles.safe}>
+      {/* Custom header — replaces stack header to avoid keyboard focus resets */}
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={Colors.primary} />
+          <Text style={styles.backLabel}>Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Add Property</Text>
+        <View style={{ width: 60 }} />
+      </View>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="always"
@@ -166,12 +176,25 @@ export default function AddPropertyScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background, paddingTop: 0 },
+  safe: { flex: 1, backgroundColor: Colors.background },
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  backBtn: { flexDirection: 'row', alignItems: 'center', width: 60 },
+  backLabel: { color: Colors.primary, fontSize: 16 },
+  navTitle: { ...Typography.h3, textAlign: 'center' },
   scroll: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   row: { flexDirection: 'row' },
   fieldGroup: { marginBottom: Spacing.md },
