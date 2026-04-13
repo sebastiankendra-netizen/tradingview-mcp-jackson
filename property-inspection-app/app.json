@@ -40,14 +40,6 @@
     },
     "plugins": [
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#1E3A5F",
-          "sounds": []
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Property Inspect to access your photos for inspection reports.",
