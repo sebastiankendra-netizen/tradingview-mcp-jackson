@@ -105,6 +105,16 @@ export default function ConductInspectionScreen() {
   }
 
   async function handleAddPhoto(itemId: string) {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Camera Permission Required',
+        'Please allow camera access in your iPhone Settings to take inspection photos.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.75,
