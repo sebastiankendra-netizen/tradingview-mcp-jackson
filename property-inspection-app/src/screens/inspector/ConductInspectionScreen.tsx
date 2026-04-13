@@ -28,7 +28,7 @@ type Route = RouteProp<InspectorStackParamList, 'ConductInspection'>;
 
 interface LocalPhoto {
   uri: string;
-  checklistItemId: string;
+  category: string;
   uploaded?: boolean;
   storagePath?: string;
 }
@@ -55,7 +55,6 @@ export default function ConductInspectionScreen() {
       .single();
     setProperty(prop ?? null);
 
-    // Load or create checklist items
     let { data: items } = await supabase
       .from('checklist_items')
       .select('*')
@@ -63,7 +62,6 @@ export default function ConductInspectionScreen() {
       .order('sort_order');
 
     if (!items || items.length === 0) {
-      // First open — seed checklist
       const seed = buildChecklistItems(inspectionId);
       const { data: inserted } = await supabase
         .from('checklist_items')
@@ -72,7 +70,6 @@ export default function ConductInspectionScreen() {
       items = inserted ?? [];
     }
 
-    // Load existing inspection notes/score
     const { data: insp } = await supabase
       .from('inspections')
       .select('condition_score, notes')
@@ -90,11 +87,7 @@ export default function ConductInspectionScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleItemChange(
-    itemId: string,
-    status: ChecklistStatus,
-    notes: string,
-  ) {
+  async function handleItemChange(itemId: string, status: ChecklistStatus, notes: string) {
     setChecklistItems((prev) =>
       prev.map((i) => (i.id === itemId ? { ...i, status, notes } : i)),
     );
@@ -104,7 +97,7 @@ export default function ConductInspectionScreen() {
       .eq('id', itemId);
   }
 
-  async function handleAddPhoto(itemId: string) {
+  async function handleAddPhoto(category: string) {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
@@ -123,33 +116,42 @@ export default function ConductInspectionScreen() {
 
     if (result.canceled) return;
     const asset = result.assets[0];
-
-    setLocalPhotos((prev) => [...prev, { uri: asset.uri, checklistItemId: itemId }]);
+    setLocalPhotos((prev) => [...prev, { uri: asset.uri, category }]);
   }
 
-  function photosForItem(itemId: string) {
+  function photosForCategory(category: string) {
     return localPhotos
-      .filter((p) => p.checklistItemId === itemId)
+      .filter((p) => p.category === category)
       .map((p) => ({ uri: p.uri }));
   }
 
-  function removePhoto(itemId: string, index: number) {
-    const itemPhotos = localPhotos.filter((p) => p.checklistItemId === itemId);
-    const toRemove = itemPhotos[index];
+  function removeCategoryPhoto(category: string, index: number) {
+    const catPhotos = localPhotos.filter((p) => p.category === category);
+    const toRemove = catPhotos[index];
     setLocalPhotos((prev) => prev.filter((p) => p !== toRemove));
+  }
+
+  // Does this category have any pass/fail items that require a photo?
+  function categoryNeedsPhoto(category: string) {
+    return checklistItems.some(
+      (i) => i.category === category && (i.status === 'pass' || i.status === 'fail'),
+    );
   }
 
   async function uploadAllPhotos() {
     const unuploaded = localPhotos.filter((p) => !p.uploaded);
     for (const photo of unuploaded) {
       try {
+        // Link photo to the first checklist item in the category
+        const firstItem = checklistItems.find((i) => i.category === photo.category);
+        if (!firstItem) continue;
+
         const ext = photo.uri.split('.').pop() ?? 'jpg';
-        const path = `${inspectionId}/${photo.checklistItemId}/${Date.now()}.${ext}`;
+        const path = `${inspectionId}/${firstItem.id}/${Date.now()}.${ext}`;
         await uploadPhoto('inspection-photos', path, photo.uri);
 
-        // Save to db — inspection_id is NOT NULL in schema
         await supabase.from('item_photos').insert({
-          checklist_item_id: photo.checklistItemId,
+          checklist_item_id: firstItem.id,
           inspection_id: inspectionId,
           storage_path: path,
           uploaded_by: profile?.id,
@@ -193,13 +195,14 @@ export default function ConductInspectionScreen() {
   }
 
   function validatePhotos() {
-    const missingPhotos = checklistItems.filter(
-      (i) => i.status !== 'na' && i.status !== 'pending' && photosForItem(i.id).length === 0,
-    );
-    if (missingPhotos.length > 0) {
+    const sectionsNeedingPhoto = CHECKLIST_CATEGORIES
+      .map((cat) => cat.name)
+      .filter((name) => categoryNeedsPhoto(name) && photosForCategory(name).length === 0);
+
+    if (sectionsNeedingPhoto.length > 0) {
       Alert.alert(
         'Photos Required',
-        `${missingPhotos.length} item(s) need a photo. Tap the camera button on each inspected item before submitting.`,
+        `${sectionsNeedingPhoto.length} section(s) still need a photo:\n\n${sectionsNeedingPhoto.join('\n')}`,
         [{ text: 'OK' }],
       );
       return;
@@ -215,10 +218,8 @@ export default function ConductInspectionScreen() {
     setSubmitting(true);
     await uploadAllPhotos();
 
-    // Auto-create maintenance issues for failed items
     const failedItems = checklistItems.filter((i) => i.status === 'fail');
     for (const item of failedItems) {
-      // Check if issue already exists
       const { data: existing } = await supabase
         .from('maintenance_issues')
         .select('id')
@@ -232,7 +233,7 @@ export default function ConductInspectionScreen() {
           checklist_item_id: item.id,
           title: `${item.category}: ${item.item_name}`,
           description: item.notes ?? null,
-          priority: 'medium',   // default; manager can escalate
+          priority: 'medium',
           status: 'open',
           created_by: profile?.id,
         });
@@ -290,33 +291,64 @@ export default function ConductInspectionScreen() {
           {/* Checklist categories */}
           {CHECKLIST_CATEGORIES.map((cat) => {
             const catItems = checklistItems.filter((i) => i.category === cat.name);
+            const photos = photosForCategory(cat.name);
+            const needsPhoto = categoryNeedsPhoto(cat.name);
+            const photoMissing = needsPhoto && photos.length === 0;
+
             return (
               <View key={cat.name} style={styles.categoryBlock}>
+
+                {/* Category header with camera button */}
                 <View style={styles.categoryHeader}>
                   <Ionicons name="list" size={16} color={Colors.primary} />
                   <Text style={styles.categoryTitle}>{cat.name}</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.catPhotoBtn,
+                      photoMissing && styles.catPhotoBtnRequired,
+                      !photoMissing && photos.length > 0 && styles.catPhotoBtnDone,
+                    ]}
+                    onPress={() => handleAddPhoto(cat.name)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="camera"
+                      size={15}
+                      color={photoMissing ? Colors.danger : photos.length > 0 ? Colors.success : Colors.textMuted}
+                    />
+                    <Text style={[
+                      styles.catPhotoBtnText,
+                      photoMissing && { color: Colors.danger },
+                      photos.length > 0 && { color: Colors.success },
+                    ]}>
+                      {photoMissing ? 'Required' : photos.length > 0 ? `${photos.length} photo` : 'Add photo'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
+                {/* Checklist items — no per-item camera */}
                 {catItems.map((item) => (
-                  <View key={item.id}>
-                    <ChecklistItemRow
-                      itemName={item.item_name}
-                      status={item.status}
-                      notes={item.notes}
-                      photoCount={photosForItem(item.id).length}
-                      photoRequired={item.status !== 'na' && item.status !== 'pending' && photosForItem(item.id).length === 0}
-                      onChange={(status, notes) => handleItemChange(item.id, status, notes)}
-                      onAddPhoto={() => handleAddPhoto(item.id)}
-                    />
-                    {photosForItem(item.id).length > 0 && (
-                      <PhotoGallery
-                        photos={photosForItem(item.id)}
-                        onAdd={() => handleAddPhoto(item.id)}
-                        onRemove={(index) => removePhoto(item.id, index)}
-                      />
-                    )}
-                  </View>
+                  <ChecklistItemRow
+                    key={item.id}
+                    itemName={item.item_name}
+                    status={item.status}
+                    notes={item.notes}
+                    hideCamera
+                    onChange={(status, notes) => handleItemChange(item.id, status, notes)}
+                    onAddPhoto={() => {}}
+                  />
                 ))}
+
+                {/* Category photo gallery */}
+                {photos.length > 0 && (
+                  <View style={styles.galleryContainer}>
+                    <PhotoGallery
+                      photos={photos}
+                      onAdd={() => handleAddPhoto(cat.name)}
+                      onRemove={(index) => removeCategoryPhoto(cat.name, index)}
+                    />
+                  </View>
+                )}
               </View>
             );
           })}
@@ -399,7 +431,32 @@ const styles = StyleSheet.create({
     ...Shadow.card,
   },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
-  categoryTitle: { ...Typography.h3 },
+  categoryTitle: { ...Typography.h3, flex: 1 },
+  catPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  catPhotoBtnRequired: {
+    borderColor: Colors.danger,
+    backgroundColor: Colors.danger + '12',
+  },
+  catPhotoBtnDone: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.success + '12',
+  },
+  catPhotoBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  galleryContainer: { marginTop: Spacing.sm },
   section: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,

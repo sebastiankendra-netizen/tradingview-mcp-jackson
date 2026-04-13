@@ -19,6 +19,7 @@ interface Props {
   onAddPhoto: () => void;
   disabled?: boolean;
   photoRequired?: boolean;
+  hideCamera?: boolean;
 }
 
 const STATUS_OPTIONS: { key: ChecklistStatus; label: string; color: string; bg: string }[] = [
@@ -36,6 +37,7 @@ export default function ChecklistItemRow({
   onAddPhoto,
   disabled = false,
   photoRequired = false,
+  hideCamera = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [localNotes, setLocalNotes] = useState(notes);
@@ -104,26 +106,28 @@ export default function ChecklistItemRow({
         })}
 
         {/* Photo button */}
-        <TouchableOpacity
-          style={[styles.photoBtn, photoRequired && styles.photoBtnRequired]}
-          onPress={onAddPhoto}
-          disabled={disabled}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name="camera"
-            size={16}
-            color={photoRequired ? Colors.danger : photoCount > 0 ? Colors.success : Colors.primary}
-          />
-          {photoRequired && (
-            <Text style={styles.photoRequiredLabel}>Required</Text>
-          )}
-          {photoCount > 0 && (
-            <View style={[styles.photoBadge, { backgroundColor: Colors.success }]}>
-              <Text style={styles.photoBadgeText}>{photoCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {!hideCamera && (
+          <TouchableOpacity
+            style={[styles.photoBtn, photoRequired && styles.photoBtnRequired]}
+            onPress={onAddPhoto}
+            disabled={disabled}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="camera"
+              size={16}
+              color={photoRequired ? Colors.danger : photoCount > 0 ? Colors.success : Colors.primary}
+            />
+            {photoRequired && (
+              <Text style={styles.photoRequiredLabel}>Required</Text>
+            )}
+            {photoCount > 0 && (
+              <View style={[styles.photoBadge, { backgroundColor: Colors.success }]}>
+                <Text style={styles.photoBadgeText}>{photoCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Expandable notes */}
