@@ -17,6 +17,42 @@ import { supabase } from '../../lib/supabase';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import { useAuth } from '../../context/AuthContext';
 
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline = false,
+  keyboardType = 'default',
+  autoCapitalize = 'words',
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, multiline && styles.inputMultiline]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={Colors.textMuted}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        textAlignVertical={multiline ? 'top' : 'auto'}
+      />
+    </View>
+  );
+}
+
 export default function AddPropertyScreen() {
   const navigation = useNavigation();
   const { profile } = useAuth();
@@ -55,40 +91,6 @@ export default function AddPropertyScreen() {
 
     navigation.goBack();
   }
-
-  const Field = ({
-    label,
-    value,
-    onChange,
-    placeholder,
-    multiline = false,
-    keyboardType = 'default',
-    autoCapitalize = 'words',
-  }: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    placeholder?: string;
-    multiline?: boolean;
-    keyboardType?: any;
-    autoCapitalize?: any;
-  }) => (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.textMuted}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        textAlignVertical={multiline ? 'top' : 'auto'}
-      />
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
