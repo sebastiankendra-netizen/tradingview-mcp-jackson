@@ -22,8 +22,6 @@
     "react-native-gesture-handler": "~2.21.0",
     "@supabase/supabase-js": "^2.43.4",
     "expo-image-picker": "~16.0.6",
-    "expo-notifications": "~0.29.9",
-    "expo-device": "~7.0.3",
     "expo-secure-store": "~14.0.1",
     "expo-constants": "~17.0.5",
     "expo-file-system": "~18.0.6",
