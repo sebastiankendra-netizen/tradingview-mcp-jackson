@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -54,8 +53,13 @@ export default function AddPropertyScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <View style={styles.safe}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+        automaticallyAdjustKeyboardInsets
+      >
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Property Name *</Text>
@@ -162,12 +166,12 @@ export default function AddPropertyScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: Colors.background, paddingTop: 0 },
   scroll: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   row: { flexDirection: 'row' },
   fieldGroup: { marginBottom: Spacing.md },
