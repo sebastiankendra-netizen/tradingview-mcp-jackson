@@ -1,5 +1,5 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Colors, Typography } from '../lib/theme';
 import { ManagerStackParamList } from '../types';
 import DashboardScreen from '../screens/manager/DashboardScreen';
@@ -8,7 +8,7 @@ import AddPropertyScreen from '../screens/manager/AddPropertyScreen';
 import InspectionDetailScreen from '../screens/manager/InspectionDetailScreen';
 import IssuesScreen from '../screens/manager/IssuesScreen';
 
-const Stack = createStackNavigator<ManagerStackParamList>();
+const Stack = createNativeStackNavigator<ManagerStackParamList>();
 
 export default function ManagerNavigator() {
   return (
@@ -17,7 +17,7 @@ export default function ManagerNavigator() {
         headerStyle: { backgroundColor: Colors.surface },
         headerTitleStyle: { ...Typography.h3, color: Colors.textPrimary },
         headerTintColor: Colors.primary,
-        headerBackTitleVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen

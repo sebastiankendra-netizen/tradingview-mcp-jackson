@@ -1,10 +1,10 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Colors, Typography } from '../lib/theme';
 import { MaintenanceStackParamList } from '../types';
 import MyIssuesScreen from '../screens/maintenance/MyIssuesScreen';
 
-const Stack = createStackNavigator<MaintenanceStackParamList>();
+const Stack = createNativeStackNavigator<MaintenanceStackParamList>();
 
 export default function MaintenanceNavigator() {
   return (
@@ -13,7 +13,7 @@ export default function MaintenanceNavigator() {
         headerStyle: { backgroundColor: Colors.surface },
         headerTitleStyle: { ...Typography.h3, color: Colors.textPrimary },
         headerTintColor: Colors.primary,
-        headerBackTitleVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../lib/theme';
 import { RootStackParamList } from '../types';
@@ -9,7 +9,7 @@ import ManagerNavigator from './ManagerNavigator';
 import InspectorNavigator from './InspectorNavigator';
 import MaintenanceNavigator from './MaintenanceNavigator';
 
-const Stack = createStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const { session, profile, loading } = useAuth();
@@ -23,7 +23,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: true }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!session || !profile ? (
         <Stack.Screen name="Login" component={LoginScreen} />
       ) : profile.role === 'manager' ? (
