@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase, uploadPhoto } from '../../lib/supabase';
@@ -22,18 +21,15 @@ import { useAuth } from '../../context/AuthContext';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import {
   IssuePriority,
-  ManagerStackParamList,
   PRIORITY_COLORS,
   PRIORITY_LABELS,
   Property,
 } from '../../types';
 
-type Nav = NativeStackNavigationProp<ManagerStackParamList>;
-
 const PRIORITIES: IssuePriority[] = ['low', 'medium', 'high', 'urgent'];
 
 export default function AddIssueScreen() {
-  const navigation = useNavigation<Nav>();
+  const navigation = useNavigation();
   const { profile } = useAuth();
 
   const [properties, setProperties] = useState<Property[]>([]);

@@ -14,17 +14,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Colors, Radius, Shadow, Spacing, Typography } from '../../lib/theme';
 import { useAuth } from '../../context/AuthContext';
-import { IssueStatus, MaintenanceIssue } from '../../types';
+import { IssueStatus, MaintenanceIssue, MaintenanceStackParamList } from '../../types';
+
+type Nav = NativeStackNavigationProp<MaintenanceStackParamList>;
 
 type Tab = 'open' | 'pending' | 'done';
 
 export default function MyIssuesScreen() {
+  const navigation = useNavigation<Nav>();
   const { profile, signOut } = useAuth();
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,6 +291,15 @@ export default function MyIssuesScreen() {
         }
       />
 
+      {/* FAB — report a new issue */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddIssue')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
       {/* Submit Completion modal */}
       <Modal
         visible={selected !== null}
@@ -497,4 +511,17 @@ const styles = StyleSheet.create({
   doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   cancelBtn: { alignItems: 'center', padding: Spacing.md },
   cancelBtnText: { ...Typography.body, color: Colors.textSecondary },
+  fab: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.card,
+    elevation: 6,
+  },
 });

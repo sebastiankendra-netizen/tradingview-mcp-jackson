@@ -173,6 +173,7 @@ export type InspectorStackParamList = {
 export type MaintenanceStackParamList = {
   MyIssues: undefined;
   IssueDetail: { issueId: string };
+  AddIssue: undefined;
 };
 
 // Priority display helpers
