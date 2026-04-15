@@ -154,13 +154,8 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  async function toggleIssueStatus(issue: MaintenanceIssue) {
-    const newStatus = issue.status === 'open' ? 'done' : 'open';
-    await supabase
-      .from('maintenance_issues')
-      .update({ status: newStatus, resolved_at: newStatus === 'done' ? new Date().toISOString() : null })
-      .eq('id', issue.id);
-    setIssues((prev) => prev.map((i) => (i.id === issue.id ? { ...i, status: newStatus } : i)));
+  function goToIssuesForReview() {
+    navigation.navigate('AllIssues');
   }
 
   async function deleteProperty() {
@@ -198,7 +193,7 @@ export default function PropertyDetailScreen() {
   }
 
   const latestInspection = inspections[0];
-  const openIssues = issues.filter((i) => i.status === 'open');
+  const openIssues = issues.filter((i) => i.status === 'open' || i.status === 'pending_review');
   const doneIssues = issues.filter((i) => i.status === 'done');
 
   const InspectionRow = ({ item }: { item: Inspection }) => {
@@ -318,12 +313,16 @@ export default function PropertyDetailScreen() {
               )}
             </View>
 
-            {/* Open issues */}
+            {/* Active issues (open + pending review) */}
             {openIssues.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Open Issues ({openIssues.length})</Text>
+                <Text style={styles.sectionTitle}>Active Issues ({openIssues.length})</Text>
                 {openIssues.map((issue) => (
-                  <IssueCard key={issue.id} issue={issue} onToggleStatus={() => toggleIssueStatus(issue)} />
+                  <IssueCard
+                    key={issue.id}
+                    issue={issue}
+                    onReviewClose={issue.status === 'pending_review' ? goToIssuesForReview : undefined}
+                  />
                 ))}
               </View>
             )}
@@ -339,7 +338,7 @@ export default function PropertyDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Resolved Issues ({doneIssues.length})</Text>
               {doneIssues.map((issue) => (
-                <IssueCard key={issue.id} issue={issue} onToggleStatus={() => toggleIssueStatus(issue)} />
+                <IssueCard key={issue.id} issue={issue} />
               ))}
             </View>
           ) : null

@@ -41,7 +41,7 @@ export interface PropertyPhoto {
 
 export type ChecklistStatus = 'pass' | 'fail' | 'na' | 'pending';
 export type InspectionStatus = 'in_progress' | 'submitted';
-export type IssueStatus = 'open' | 'done';
+export type IssueStatus = 'open' | 'pending_review' | 'done';
 export type AssignmentFrequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'ondemand';
 
 export interface ItemPhoto {
@@ -91,6 +91,7 @@ export interface IssuePhoto {
   uploaded_by?: string;
   storage_path: string;
   file_name?: string;
+  photo_type: 'before' | 'after';
   uploaded_at: string;
   publicUrl?: string;
 }

@@ -73,7 +73,7 @@ export default function DashboardScreen() {
       );
       const latest = propInspections[0];
       const openCount = (issuesData ?? []).filter(
-        (i) => i.property_id === p.id && i.status === 'open',
+        (i) => i.property_id === p.id && (i.status === 'open' || i.status === 'pending_review'),
       ).length;
 
       return {
@@ -90,7 +90,9 @@ export default function DashboardScreen() {
         .map((i) => i.property_id),
     ).size;
 
-    const openIssues = (issuesData ?? []).filter((i) => i.status === 'open').length;
+    const openIssues = (issuesData ?? []).filter(
+      (i) => i.status === 'open' || i.status === 'pending_review',
+    ).length;
     const recentSubmissions = (inspectionsData ?? []).filter(
       (i) => i.submitted_at && new Date(i.submitted_at) >= startOfMonth,
     ).length;

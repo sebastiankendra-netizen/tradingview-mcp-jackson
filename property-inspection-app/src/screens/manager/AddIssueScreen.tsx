@@ -102,6 +102,10 @@ export default function AddIssueScreen() {
       Alert.alert('Title Required', 'Please enter a title for this issue.');
       return;
     }
+    if (!photoUri) {
+      Alert.alert('Before Photo Required', 'Please take a before photo to document the issue.');
+      return;
+    }
     if (!profile) return;
 
     setSubmitting(true);
@@ -135,6 +139,7 @@ export default function AddIssueScreen() {
             uploaded_by: profile.id,
             storage_path: storagePath,
             file_name: fileName,
+            photo_type: 'before',
           });
         } catch {
           Alert.alert(
@@ -251,7 +256,10 @@ export default function AddIssueScreen() {
           </View>
 
           {/* Photo */}
-          <Text style={styles.sectionLabel}>Photo</Text>
+          <Text style={styles.sectionLabel}>Before Photo *</Text>
+          <Text style={styles.hint}>
+            Document the issue before any work is done. Required.
+          </Text>
           {photoUri ? (
             <View style={styles.photoPreview}>
               <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
@@ -303,6 +311,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
     marginTop: Spacing.md,
+  },
+  hint: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginBottom: 8,
+    marginTop: -4,
   },
   propertyList: { gap: 6 },
   propertyRow: {

@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,25 +12,30 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { supabase } from '../../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Colors, Radius, Shadow, Spacing, Typography } from '../../lib/theme';
 import { useAuth } from '../../context/AuthContext';
-import { MaintenanceIssue } from '../../types';
+import { IssueStatus, MaintenanceIssue } from '../../types';
+
+type Tab = 'open' | 'pending' | 'done';
 
 export default function MyIssuesScreen() {
   const { profile, signOut } = useAuth();
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<Tab>('open');
+
+  // Submit-completion modal state
   const [selected, setSelected] = useState<MaintenanceIssue | null>(null);
   const [resolutionNote, setResolutionNote] = useState('');
-  const [resolving, setResolving] = useState(false);
-  const [showDone, setShowDone] = useState(false);
+  const [afterPhotoUri, setAfterPhotoUri] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
@@ -38,7 +45,7 @@ export default function MyIssuesScreen() {
         *,
         property:properties(id,name,address,city)
       `)
-      .eq('assigned_to', profile.id)
+      .or(`assigned_to.eq.${profile.id},created_by.eq.${profile.id}`)
       .order('created_at', { ascending: false });
     setIssues((data ?? []) as MaintenanceIssue[]);
     setLoading(false);
@@ -52,87 +59,156 @@ export default function MyIssuesScreen() {
     setRefreshing(false);
   }, [load]);
 
-  async function markDone(issue: MaintenanceIssue) {
-    setResolving(true);
-    await supabase
-      .from('maintenance_issues')
-      .update({
-        status: 'done',
-        resolution_notes: resolutionNote.trim() || null,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq('id', issue.id);
-
-    setIssues((prev) =>
-      prev.map((i) =>
-        i.id === issue.id
-          ? { ...i, status: 'done', resolution_notes: resolutionNote.trim() || undefined }
-          : i,
-      ),
-    );
-    setResolving(false);
-    setSelected(null);
-    setResolutionNote('');
-  }
-
-  async function reopenIssue(issue: MaintenanceIssue) {
-    Alert.alert('Reopen Issue', 'Mark this issue as open again?', [
-      { text: 'Cancel', style: 'cancel' },
+  async function handleAddAfterPhoto() {
+    Alert.alert('Add Completion Photo', 'Choose an option', [
       {
-        text: 'Reopen',
+        text: 'Take Photo',
         onPress: async () => {
-          await supabase
-            .from('maintenance_issues')
-            .update({ status: 'open', resolved_at: null, resolution_notes: null })
-            .eq('id', issue.id);
-          setIssues((prev) =>
-            prev.map((i) => (i.id === issue.id ? { ...i, status: 'open' } : i)),
-          );
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Camera Permission Required', 'Please allow camera access in Settings.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.75,
+          });
+          if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
         },
       },
+      {
+        text: 'Choose from Library',
+        onPress: async () => {
+          const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (libPerm.status !== 'granted') {
+            Alert.alert('Permission Required', 'Please allow photo library access.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.75,
+          });
+          if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   }
 
-  const openIssues = issues.filter((i) => i.status === 'open');
-  const doneIssues = issues.filter((i) => i.status === 'done');
-  const displayList = showDone ? doneIssues : openIssues;
+  async function submitCompletion() {
+    if (!selected || !profile) return;
+    if (!afterPhotoUri) {
+      Alert.alert('Photo Required', 'Please attach a completion photo before submitting.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload after photo
+      const ext = afterPhotoUri.split('.').pop() ?? 'jpg';
+      const fileName = `after_${Date.now()}.${ext}`;
+      const storagePath = `issues/${selected.id}/${fileName}`;
+      await uploadPhoto('inspection-photos', storagePath, afterPhotoUri);
+      await supabase.from('issue_photos').insert({
+        issue_id: selected.id,
+        uploaded_by: profile.id,
+        storage_path: storagePath,
+        file_name: fileName,
+        photo_type: 'after',
+      });
+
+      // Update issue status → pending_review
+      const { error } = await supabase
+        .from('maintenance_issues')
+        .update({
+          status: 'pending_review',
+          resolution_notes: resolutionNote.trim() || null,
+        })
+        .eq('id', selected.id);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        setSubmitting(false);
+        return;
+      }
+
+      setIssues((prev) =>
+        prev.map((i) =>
+          i.id === selected.id
+            ? {
+                ...i,
+                status: 'pending_review' as IssueStatus,
+                resolution_notes: resolutionNote.trim() || undefined,
+              }
+            : i,
+        ),
+      );
+      setSelected(null);
+      setResolutionNote('');
+      setAfterPhotoUri(null);
+    } catch (err: any) {
+      Alert.alert('Upload Failed', err.message ?? 'Could not submit completion photo.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const openList = issues.filter((i) => i.status === 'open');
+  const pendingList = issues.filter((i) => i.status === 'pending_review');
+  const doneList = issues.filter((i) => i.status === 'done');
+
+  const displayList =
+    tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
 
   const IssueRow = ({ item }: { item: MaintenanceIssue }) => {
-    const isOpen = item.status === 'open';
+    const status = item.status as IssueStatus;
+    const isOpen = status === 'open';
+    const isPending = status === 'pending_review';
+
     return (
-      <TouchableOpacity
-        style={[styles.issueCard, !isOpen && styles.issueCardDone]}
-        onPress={() => isOpen ? setSelected(item) : reopenIssue(item)}
-        activeOpacity={0.85}
-      >
-        <View style={[styles.statusDot, { backgroundColor: isOpen ? Colors.danger : Colors.success }]} />
+      <View style={[styles.issueCard, !isOpen && styles.issueCardDimmed]}>
+        <View
+          style={[
+            styles.statusDot,
+            {
+              backgroundColor: isOpen
+                ? Colors.danger
+                : isPending
+                  ? '#F39C12'
+                  : Colors.success,
+            },
+          ]}
+        />
         <View style={styles.issueBody}>
-          <Text style={[styles.issueTitle, !isOpen && styles.issueTitleDone]} numberOfLines={2}>
-            {item.title}
-          </Text>
+          <Text style={styles.issueTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="business-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.metaText}>
-              {(item.property as any)?.name ?? 'Unknown property'}
-            </Text>
+            <Text style={styles.metaText}>{(item.property as any)?.name ?? 'Unknown property'}</Text>
             <Text style={styles.dot}>·</Text>
             <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.metaText}>
-              {format(new Date(item.created_at), 'MMM d')}
-            </Text>
+            <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d')}</Text>
           </View>
-          {!isOpen && item.resolution_notes && (
+          {isPending && (
+            <Text style={styles.awaitingLabel}>⏳ Awaiting manager review</Text>
+          )}
+          {status === 'done' && item.resolution_notes && (
             <Text style={styles.resolvedNote} numberOfLines={1}>
-              Note: {item.resolution_notes}
+              ✓ {item.resolution_notes}
             </Text>
           )}
+
+          {isOpen && (
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={() => setSelected(item)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="camera" size={14} color="#fff" />
+              <Text style={styles.submitBtnText}>Submit Completion Photo</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <Ionicons
-          name={isOpen ? 'checkmark-circle-outline' : 'refresh-circle-outline'}
-          size={22}
-          color={isOpen ? Colors.success : Colors.textMuted}
-        />
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -157,22 +233,30 @@ export default function MyIssuesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Toggle */}
-      <View style={styles.toggleRow}>
+      {/* Tabs */}
+      <View style={styles.tabRow}>
         <TouchableOpacity
-          style={[styles.toggleBtn, !showDone && styles.toggleBtnActive]}
-          onPress={() => setShowDone(false)}
+          style={[styles.tabBtn, tab === 'open' && styles.tabBtnActiveOpen]}
+          onPress={() => setTab('open')}
         >
-          <Text style={[styles.toggleLabel, !showDone && styles.toggleLabelActive]}>
-            Open ({openIssues.length})
+          <Text style={[styles.tabLabel, tab === 'open' && { color: Colors.danger }]}>
+            Open ({openList.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleBtn, showDone && styles.toggleBtnActive]}
-          onPress={() => setShowDone(true)}
+          style={[styles.tabBtn, tab === 'pending' && styles.tabBtnActivePending]}
+          onPress={() => setTab('pending')}
         >
-          <Text style={[styles.toggleLabel, showDone && styles.toggleLabelActive]}>
-            Completed ({doneIssues.length})
+          <Text style={[styles.tabLabel, tab === 'pending' && { color: '#F39C12' }]}>
+            Pending ({pendingList.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'done' && styles.tabBtnActiveDone]}
+          onPress={() => setTab('done')}
+        >
+          <Text style={[styles.tabLabel, tab === 'done' && { color: Colors.success }]}>
+            Done ({doneList.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -186,72 +270,97 @@ export default function MyIssuesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons
-              name={showDone ? 'checkmark-circle-outline' : 'clipboard-outline'}
+              name={tab === 'done' ? 'checkmark-circle-outline' : tab === 'pending' ? 'time-outline' : 'clipboard-outline'}
               size={48}
               color={Colors.textMuted}
             />
             <Text style={styles.emptyTitle}>
-              {showDone ? 'No completed issues' : 'No open issues'}
+              {tab === 'done' ? 'No completed issues'
+                : tab === 'pending' ? 'Nothing awaiting review'
+                : 'No open issues'}
             </Text>
             <Text style={styles.emptyText}>
-              {showDone ? '' : "You're all caught up!"}
+              {tab === 'open' ? "You're all caught up!" : ''}
             </Text>
           </View>
         }
       />
 
-      {/* Mark Done modal */}
+      {/* Submit Completion modal */}
       <Modal
         visible={selected !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelected(null)}
+        onRequestClose={() => { setSelected(null); setAfterPhotoUri(null); setResolutionNote(''); }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Mark as Done</Text>
-            <Text style={styles.modalIssueTitle} numberOfLines={3}>
-              {selected?.title}
-            </Text>
-            <Text style={styles.modalProp}>
-              {(selected?.property as any)?.name ?? ''}
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Submit Completion</Text>
+              <Text style={styles.modalIssueTitle} numberOfLines={3}>{selected?.title}</Text>
+              <Text style={styles.modalProp}>{(selected?.property as any)?.name ?? ''}</Text>
 
-            <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="What was done to resolve this?"
-              placeholderTextColor={Colors.textMuted}
-              value={resolutionNote}
-              onChangeText={setResolutionNote}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-
-            <TouchableOpacity
-              style={[styles.doneBtn, resolving && { opacity: 0.7 }]}
-              onPress={() => selected && markDone(selected)}
-              disabled={resolving}
-              activeOpacity={0.85}
-            >
-              {resolving ? (
-                <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.modalLabel}>After Photo *</Text>
+              <Text style={styles.modalHint}>
+                A manager will review this photo before closing the issue.
+              </Text>
+              {afterPhotoUri ? (
+                <View style={styles.photoPreview}>
+                  <Image source={{ uri: afterPhotoUri }} style={styles.photoImage} resizeMode="cover" />
+                  <TouchableOpacity
+                    style={styles.removePhotoBtn}
+                    onPress={() => setAfterPhotoUri(null)}
+                  >
+                    <Ionicons name="close-circle" size={26} color={Colors.danger} />
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={styles.doneBtnText}>Mark as Done</Text>
-                </>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={handleAddAfterPhoto}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="camera-outline" size={22} color={Colors.primary} />
+                  <Text style={styles.photoBtnText}>Add After Photo</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => { setSelected(null); setResolutionNote(''); }}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+              <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="What was done to resolve this?"
+                placeholderTextColor={Colors.textMuted}
+                value={resolutionNote}
+                onChangeText={setResolutionNote}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity
+                style={[styles.doneBtn, submitting && { opacity: 0.7 }]}
+                onPress={submitCompletion}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={18} color="#fff" />
+                    <Text style={styles.doneBtnText}>Submit for Review</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => { setSelected(null); setAfterPhotoUri(null); setResolutionNote(''); }}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -266,8 +375,13 @@ const styles = StyleSheet.create({
   greeting: { ...Typography.bodySmall, color: Colors.textSecondary },
   name: { ...Typography.h2 },
   logoutBtn: { padding: 8 },
-  toggleRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
-  toggleBtn: {
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  tabBtn: {
     flex: 1,
     borderRadius: Radius.md,
     borderWidth: 2,
@@ -276,29 +390,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
   },
-  toggleBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + '10' },
-  toggleLabel: { ...Typography.label, color: Colors.textSecondary },
-  toggleLabelActive: { color: Colors.primary },
+  tabBtnActiveOpen: { borderColor: Colors.danger, backgroundColor: Colors.danger + '10' },
+  tabBtnActivePending: { borderColor: '#F39C12', backgroundColor: '#F39C1215' },
+  tabBtnActiveDone: { borderColor: Colors.success, backgroundColor: Colors.success + '10' },
+  tabLabel: { ...Typography.label, color: Colors.textSecondary },
   list: { padding: Spacing.md, paddingTop: 0, paddingBottom: Spacing.xxl },
   issueCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.sm,
     gap: Spacing.md,
     ...Shadow.card,
   },
-  issueCardDone: { opacity: 0.7 },
-  statusDot: { width: 10, height: 10, borderRadius: Radius.full },
+  issueCardDimmed: { opacity: 0.85 },
+  statusDot: { width: 10, height: 10, borderRadius: Radius.full, marginTop: 6 },
   issueBody: { flex: 1 },
   issueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
-  issueTitleDone: { textDecorationLine: 'line-through', color: Colors.textMuted },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   metaText: { ...Typography.caption },
   dot: { color: Colors.textMuted, fontSize: 12 },
+  awaitingLabel: { ...Typography.caption, color: '#F39C12', marginTop: 4, fontWeight: '600' },
   resolvedNote: { ...Typography.caption, color: Colors.success, marginTop: 2, fontStyle: 'italic' },
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.sm,
+    backgroundColor: '#F39C12',
+    borderRadius: Radius.md,
+    paddingVertical: 10,
+  },
+  submitBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },
   emptyText: { ...Typography.bodySmall, textAlign: 'center' },
@@ -310,6 +436,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
+    maxHeight: '92%',
   },
   modalHandle: {
     width: 40,
@@ -322,7 +449,31 @@ const styles = StyleSheet.create({
   modalTitle: { ...Typography.h2, marginBottom: Spacing.sm },
   modalIssueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
   modalProp: { ...Typography.bodySmall, color: Colors.primary, marginBottom: Spacing.md },
-  modalLabel: { ...Typography.label, marginBottom: 6 },
+  modalLabel: { ...Typography.label, marginBottom: 4, marginTop: Spacing.sm },
+  modalHint: { ...Typography.caption, color: Colors.textMuted, marginBottom: 8 },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderStyle: 'dashed',
+    height: 60,
+    marginBottom: Spacing.md,
+  },
+  photoBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
+  photoPreview: { borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md },
+  photoImage: { width: '100%', height: 200 },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 13,
+  },
   modalInput: {
     backgroundColor: Colors.background,
     borderRadius: Radius.md,
@@ -331,7 +482,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     ...Typography.body,
     color: Colors.textPrimary,
-    minHeight: 80,
+    minHeight: 70,
     marginBottom: Spacing.md,
   },
   doneBtn: {
@@ -339,10 +490,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.success,
+    backgroundColor: '#F39C12',
     borderRadius: Radius.md,
     height: 52,
-    marginBottom: Spacing.sm,
   },
   doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   cancelBtn: { alignItems: 'center', padding: Spacing.md },

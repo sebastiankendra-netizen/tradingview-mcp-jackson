@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Image,
+  Modal,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -12,35 +17,57 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
+import { getSignedUrl, supabase } from '../../lib/supabase';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import IssueCard from '../../components/IssueCard';
-import { IssuePriority, MaintenanceIssue, ManagerStackParamList, PRIORITY_COLORS, PRIORITY_LABELS } from '../../types';
+import {
+  IssuePhoto,
+  IssuePriority,
+  IssueStatus,
+  MaintenanceIssue,
+  ManagerStackParamList,
+  PRIORITY_COLORS,
+  PRIORITY_LABELS,
+} from '../../types';
 
 type Nav = NativeStackNavigationProp<ManagerStackParamList>;
 
-type Filter = 'open' | 'done' | 'all';
+type Filter = 'open' | 'pending_review' | 'done' | 'all';
 type PriorityFilter = 'all' | IssuePriority;
+
+const FILTER_CONFIG: Record<Filter, { label: string; color: string }> = {
+  open:           { label: 'Open',         color: Colors.danger },
+  pending_review: { label: 'Needs Review', color: '#F39C12' },
+  done:           { label: 'Done',         color: Colors.success },
+  all:            { label: 'All',          color: Colors.primary },
+};
 
 export default function IssuesScreen() {
   const navigation = useNavigation<Nav>();
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
-  const [filter, setFilter] = useState<Filter>('open');
+  const [filter, setFilter] = useState<Filter>('pending_review');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Review & Close modal state
+  const [reviewIssue, setReviewIssue] = useState<MaintenanceIssue | null>(null);
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
+  const [afterUrl, setAfterUrl] = useState<string | null>(null);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [closing, setClosing] = useState(false);
+
   const load = useCallback(async () => {
-    const query = supabase
+    const { data } = await supabase
       .from('maintenance_issues')
       .select(`
         *,
         property:properties(id,name,address),
-        assignee:profiles!maintenance_issues_assigned_to_fkey(id,full_name,role)
+        assignee:profiles!maintenance_issues_assigned_to_fkey(id,full_name,role),
+        photos:issue_photos(*)
       `)
       .order('created_at', { ascending: false });
-
-    const { data } = await query;
     setIssues((data ?? []) as MaintenanceIssue[]);
     setLoading(false);
   }, []);
@@ -53,18 +80,73 @@ export default function IssuesScreen() {
     setRefreshing(false);
   }, [load]);
 
-  async function toggleStatus(issue: MaintenanceIssue) {
-    const newStatus = issue.status === 'open' ? 'done' : 'open';
-    await supabase
+  async function openReview(issue: MaintenanceIssue) {
+    setReviewIssue(issue);
+    setBeforeUrl(null);
+    setAfterUrl(null);
+    setResolutionNote('');
+
+    const photos = (issue.photos ?? []) as IssuePhoto[];
+    const beforePhoto = photos.find((p) => p.photo_type === 'before');
+    const afterPhoto = photos.find((p) => p.photo_type === 'after');
+
+    if (beforePhoto || afterPhoto) {
+      setLoadingPhotos(true);
+      const [b, a] = await Promise.all([
+        beforePhoto ? getSignedUrl('inspection-photos', beforePhoto.storage_path) : Promise.resolve(null),
+        afterPhoto ? getSignedUrl('inspection-photos', afterPhoto.storage_path) : Promise.resolve(null),
+      ]);
+      setBeforeUrl(b);
+      setAfterUrl(a);
+      setLoadingPhotos(false);
+    }
+  }
+
+  async function closeIssue() {
+    if (!reviewIssue) return;
+    setClosing(true);
+    const { error } = await supabase
       .from('maintenance_issues')
       .update({
-        status: newStatus,
-        resolved_at: newStatus === 'done' ? new Date().toISOString() : null,
+        status: 'done',
+        resolution_notes: resolutionNote.trim() || null,
+        resolved_at: new Date().toISOString(),
       })
-      .eq('id', issue.id);
+      .eq('id', reviewIssue.id);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      setClosing(false);
+      return;
+    }
+
     setIssues((prev) =>
-      prev.map((i) => (i.id === issue.id ? { ...i, status: newStatus } : i)),
+      prev.map((i) =>
+        i.id === reviewIssue.id
+          ? { ...i, status: 'done' as IssueStatus, resolution_notes: resolutionNote.trim() || undefined }
+          : i,
+      ),
     );
+    setClosing(false);
+    setReviewIssue(null);
+  }
+
+  async function reopenIssue(issue: MaintenanceIssue) {
+    Alert.alert('Reopen Issue', 'Mark this issue as open again?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reopen',
+        onPress: async () => {
+          await supabase
+            .from('maintenance_issues')
+            .update({ status: 'open', resolved_at: null, resolution_notes: null })
+            .eq('id', issue.id);
+          setIssues((prev) =>
+            prev.map((i) => (i.id === issue.id ? { ...i, status: 'open' as IssueStatus } : i)),
+          );
+        },
+      },
+    ]);
   }
 
   const filtered = issues.filter((i) => {
@@ -74,26 +156,32 @@ export default function IssuesScreen() {
   });
 
   const openCount = issues.filter((i) => i.status === 'open').length;
+  const pendingCount = issues.filter((i) => i.status === 'pending_review').length;
   const doneCount = issues.filter((i) => i.status === 'done').length;
 
-  const FilterBtn = ({ value, label, count }: { value: Filter; label: string; count?: number }) => (
-    <TouchableOpacity
-      style={[styles.filterBtn, filter === value && styles.filterBtnActive]}
-      onPress={() => setFilter(value)}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.filterLabel, filter === value && styles.filterLabelActive]}>
-        {label}
-      </Text>
-      {count !== undefined && (
-        <View style={[styles.filterBadge, filter === value && styles.filterBadgeActive]}>
-          <Text style={[styles.filterBadgeText, filter === value && styles.filterBadgeTextActive]}>
-            {count}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+  const FilterBtn = ({ value, count }: { value: Filter; count?: number }) => {
+    const cfg = FILTER_CONFIG[value];
+    const active = filter === value;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.filterBtn,
+          active && { backgroundColor: cfg.color, borderColor: cfg.color },
+        ]}
+        onPress={() => setFilter(value)}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{cfg.label}</Text>
+        {count !== undefined && (
+          <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
+            <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
+              {count}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -112,14 +200,20 @@ export default function IssuesScreen() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-      {/* Status filter tabs */}
-      <View style={styles.filterRow}>
-        <FilterBtn value="open" label="Open" count={openCount} />
-        <FilterBtn value="done" label="Done" count={doneCount} />
-        <FilterBtn value="all" label="All" count={issues.length} />
-      </View>
 
-      {/* Priority filter chips (only when viewing open issues) */}
+      {/* Status filter tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        <FilterBtn value="pending_review" count={pendingCount} />
+        <FilterBtn value="open" count={openCount} />
+        <FilterBtn value="done" count={doneCount} />
+        <FilterBtn value="all" count={issues.length} />
+      </ScrollView>
+
+      {/* Priority filter chips */}
       {filter !== 'done' && (
         <View style={styles.priorityRow}>
           {(['all', 'urgent', 'high', 'medium', 'low'] as const).map((p) => {
@@ -152,26 +246,118 @@ export default function IssuesScreen() {
           <IssueCard
             issue={item}
             showProperty
-            onToggleStatus={() => toggleStatus(item)}
+            onReviewClose={() => openReview(item)}
+            onReopen={() => reopenIssue(item)}
           />
         )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons
-              name={filter === 'open' ? 'checkmark-circle-outline' : 'documents-outline'}
+              name={filter === 'pending_review' ? 'time-outline' : filter === 'open' ? 'checkmark-circle-outline' : 'documents-outline'}
               size={48}
               color={Colors.textMuted}
             />
             <Text style={styles.emptyTitle}>
-              {filter === 'open' ? 'No open issues' : 'No issues found'}
+              {filter === 'pending_review' ? 'Nothing to review'
+                : filter === 'open' ? 'No open issues'
+                : 'No issues found'}
             </Text>
             <Text style={styles.emptyText}>
-              {filter === 'open' ? 'All clear across your properties.' : ''}
+              {filter === 'pending_review' ? 'Completed work will show up here for your approval.'
+                : filter === 'open' ? 'All clear across your properties.'
+                : ''}
             </Text>
           </View>
         }
       />
+
+      {/* Review & Close Modal */}
+      <Modal
+        visible={reviewIssue !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReviewIssue(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHandle} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Review & Close</Text>
+              <Text style={styles.modalIssueTitle}>{reviewIssue?.title}</Text>
+              {reviewIssue?.property && (
+                <Text style={styles.modalProp}>
+                  {(reviewIssue.property as any).name}
+                </Text>
+              )}
+
+              {loadingPhotos ? (
+                <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.lg }} />
+              ) : (
+                <View style={styles.photosRow}>
+                  <View style={styles.photoBlock}>
+                    <Text style={styles.photoCaption}>Before</Text>
+                    {beforeUrl ? (
+                      <Image source={{ uri: beforeUrl }} style={styles.photoImage} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.photoImage, styles.noPhoto]}>
+                        <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
+                        <Text style={styles.noPhotoText}>No photo</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.photoBlock}>
+                    <Text style={styles.photoCaption}>After</Text>
+                    {afterUrl ? (
+                      <Image source={{ uri: afterUrl }} style={styles.photoImage} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.photoImage, styles.noPhoto]}>
+                        <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
+                        <Text style={styles.noPhotoText}>No photo</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Approve or add a note about how the issue was fixed..."
+                placeholderTextColor={Colors.textMuted}
+                value={resolutionNote}
+                onChangeText={setResolutionNote}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity
+                style={[styles.closeBtn, closing && { opacity: 0.7 }]}
+                onPress={closeIssue}
+                disabled={closing}
+                activeOpacity={0.85}
+              >
+                {closing ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={styles.closeBtnText}>Close Issue</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setReviewIssue(null)}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -180,8 +366,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
   filterRow: {
-    flexDirection: 'row',
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
     gap: Spacing.sm,
   },
@@ -195,10 +381,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.border,
     gap: 6,
-  },
-  filterBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   filterLabel: { ...Typography.label, color: Colors.textSecondary },
   filterLabelActive: { color: '#fff' },
@@ -251,4 +433,67 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+    maxHeight: '90%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: Radius.full,
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
+  },
+  modalTitle: { ...Typography.h2, marginBottom: Spacing.sm },
+  modalIssueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
+  modalProp: { ...Typography.bodySmall, color: Colors.primary, marginBottom: Spacing.md },
+  photosRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  photoBlock: { flex: 1 },
+  photoCaption: { ...Typography.caption, fontWeight: '700', marginBottom: 4 },
+  photoImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.background,
+  },
+  noPhoto: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  noPhotoText: { ...Typography.caption, color: Colors.textMuted },
+  modalLabel: { ...Typography.label, marginBottom: 6 },
+  modalInput: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.sm,
+    ...Typography.body,
+    color: Colors.textPrimary,
+    minHeight: 70,
+    marginBottom: Spacing.md,
+  },
+  closeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.success,
+    borderRadius: Radius.md,
+    height: 52,
+  },
+  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  cancelBtn: { alignItems: 'center', padding: Spacing.md },
+  cancelBtnText: { ...Typography.body, color: Colors.textSecondary },
 });
