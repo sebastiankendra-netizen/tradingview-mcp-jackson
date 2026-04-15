@@ -129,7 +129,17 @@ export default function DashboardScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await supabase.from('properties').delete().eq('id', property.id);
+            const { error } = await supabase
+              .from('properties')
+              .delete()
+              .eq('id', property.id);
+
+            if (error) {
+              Alert.alert('Delete Failed', error.message);
+              swipeableRefs.current.get(property.id)?.close();
+              return;
+            }
+
             setProperties((prev) => prev.filter((p) => p.id !== property.id));
             setStats((prev) => ({ ...prev, totalProperties: prev.totalProperties - 1 }));
           },
