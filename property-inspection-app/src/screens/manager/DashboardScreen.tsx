@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -111,6 +113,42 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [load]);
 
+  const swipeableRefs = useRef<Map<string, Swipeable | null>>(new Map());
+
+  const deleteProperty = useCallback((property: PropertyWithStats) => {
+    Alert.alert(
+      'Delete Property',
+      `Are you sure you want to delete "${property.name}"? This cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => swipeableRefs.current.get(property.id)?.close(),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('properties').delete().eq('id', property.id);
+            setProperties((prev) => prev.filter((p) => p.id !== property.id));
+            setStats((prev) => ({ ...prev, totalProperties: prev.totalProperties - 1 }));
+          },
+        },
+      ],
+    );
+  }, []);
+
+  const renderRightActions = useCallback((property: PropertyWithStats) => (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={() => deleteProperty(property)}
+      activeOpacity={0.8}
+    >
+      <Ionicons name="trash-outline" size={22} color="#fff" />
+      <Text style={styles.deleteActionText}>Delete</Text>
+    </TouchableOpacity>
+  ), [deleteProperty]);
+
   const StatCard = ({ icon, value, label, color }: {
     icon: string; value: number; label: string; color: string;
   }) => (
@@ -186,13 +224,21 @@ export default function DashboardScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <PropertyCard
-            property={item}
-            lastInspectionDate={item.lastInspectionDate}
-            conditionScore={item.conditionScore}
-            openIssuesCount={item.openIssuesCount}
-            onPress={() => navigation.navigate('PropertyDetail', { propertyId: item.id })}
-          />
+          <Swipeable
+            ref={(ref) => swipeableRefs.current.set(item.id, ref)}
+            renderRightActions={() => renderRightActions(item)}
+            friction={2}
+            rightThreshold={60}
+            overshootRight={false}
+          >
+            <PropertyCard
+              property={item}
+              lastInspectionDate={item.lastInspectionDate}
+              conditionScore={item.conditionScore}
+              openIssuesCount={item.openIssuesCount}
+              onPress={() => navigation.navigate('PropertyDetail', { propertyId: item.id })}
+            />
+          </Swipeable>
         )}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
@@ -268,4 +314,14 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },
   emptyText: { ...Typography.bodySmall, textAlign: 'center' },
+  deleteAction: {
+    backgroundColor: Colors.danger,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderRadius: Radius.md,
+    marginBottom: 6,
+    gap: 4,
+  },
+  deleteActionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
