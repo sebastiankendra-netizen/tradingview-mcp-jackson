@@ -161,6 +161,7 @@ export type ManagerStackParamList = {
   ConductInspection: { propertyId: string; inspectionId?: string };
   InspectionDetail: { inspectionId: string };
   AllIssues: undefined;
+  AddIssue: undefined;
 };
 
 export type InspectorStackParamList = {

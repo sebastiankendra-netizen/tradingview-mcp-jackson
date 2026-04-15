@@ -9,16 +9,21 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import IssueCard from '../../components/IssueCard';
-import { IssuePriority, MaintenanceIssue, PRIORITY_COLORS, PRIORITY_LABELS } from '../../types';
+import { IssuePriority, MaintenanceIssue, ManagerStackParamList, PRIORITY_COLORS, PRIORITY_LABELS } from '../../types';
+
+type Nav = NativeStackNavigationProp<ManagerStackParamList>;
 
 type Filter = 'open' | 'done' | 'all';
 type PriorityFilter = 'all' | IssuePriority;
 
 export default function IssuesScreen() {
+  const navigation = useNavigation<Nav>();
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [filter, setFilter] = useState<Filter>('open');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
@@ -100,6 +105,13 @@ export default function IssuesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddIssue')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
       {/* Status filter tabs */}
       <View style={styles.filterRow}>
         <FilterBtn value="open" label="Open" count={openCount} />
@@ -218,8 +230,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   priorityChipText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
-  list: { padding: Spacing.md, paddingBottom: Spacing.xxl },
+  list: { padding: Spacing.md, paddingBottom: 100 },
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },
   emptyText: { ...Typography.bodySmall, textAlign: 'center' },
+  fab: {
+    position: 'absolute',
+    bottom: 28,
+    right: 20,
+    zIndex: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
 });
