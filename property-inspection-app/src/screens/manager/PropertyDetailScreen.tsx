@@ -291,16 +291,6 @@ export default function PropertyDetailScreen() {
                   {inProgressInspectionId ? 'Resume Inspection' : 'Start Inspection'}
                 </Text>
               </TouchableOpacity>
-
-              {/* Delete property */}
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={deleteProperty}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-                <Text style={styles.deleteBtnText}>Delete Property</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Assigned inspectors */}
