@@ -163,6 +163,24 @@ export default function PropertyDetailScreen() {
     setIssues((prev) => prev.map((i) => (i.id === issue.id ? { ...i, status: newStatus } : i)));
   }
 
+  async function deleteProperty() {
+    Alert.alert(
+      'Delete Property',
+      `Are you sure you want to delete "${property?.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('properties').delete().eq('id', propertyId);
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -272,6 +290,16 @@ export default function PropertyDetailScreen() {
                 <Text style={styles.inspectBtnText}>
                   {inProgressInspectionId ? 'Resume Inspection' : 'Start Inspection'}
                 </Text>
+              </TouchableOpacity>
+
+              {/* Delete property */}
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={deleteProperty}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                <Text style={styles.deleteBtnText}>Delete Property</Text>
               </TouchableOpacity>
             </View>
 
@@ -405,6 +433,8 @@ const styles = StyleSheet.create({
   inspectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.primary, borderRadius: Radius.md, height: 48, marginTop: Spacing.md },
   inspectBtnResume: { backgroundColor: Colors.accent },
   inspectBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.sm, paddingVertical: 10 },
+  deleteBtnText: { color: Colors.danger, fontSize: 14, fontWeight: '600' },
   section: { marginBottom: Spacing.md },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   sectionTitle: { ...Typography.h3 },
