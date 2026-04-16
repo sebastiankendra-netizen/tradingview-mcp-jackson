@@ -19,6 +19,7 @@ const STATUS_CONFIG: Record<IssueStatus, { label: string; color: string; icon: s
 interface Props {
   issue: MaintenanceIssue;
   showProperty?: boolean;
+  onPress?: () => void;
   // Role-based actions — pass whichever apply
   onSubmitCompletion?: () => void;  // maintenance tech: submit after photo
   onReviewClose?: () => void;       // manager: review after photo & close
@@ -28,6 +29,7 @@ interface Props {
 export default function IssueCard({
   issue,
   showProperty = false,
+  onPress,
   onSubmitCompletion,
   onReviewClose,
   onReopen,
@@ -37,8 +39,13 @@ export default function IssueCard({
   const isDone = status === 'done';
   const isPending = status === 'pending_review';
 
+  const Container = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={[styles.card, isDone && styles.cardDone]}>
+    <Container
+      style={[styles.card, isDone && styles.cardDone]}
+      {...(onPress ? { onPress, activeOpacity: 0.75 } : {})}
+    >
       {/* Status + priority row */}
       <View style={styles.topRow}>
         <View style={[styles.statusPill, { backgroundColor: cfg.color + '20' }]}>
@@ -124,7 +131,7 @@ export default function IssueCard({
           <Text style={styles.actionBtnText}>Reopen</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </Container>
   );
 }
 

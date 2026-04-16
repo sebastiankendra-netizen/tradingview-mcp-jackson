@@ -321,6 +321,7 @@ export default function PropertyDetailScreen() {
                   <IssueCard
                     key={issue.id}
                     issue={issue}
+                    onPress={goToIssuesForReview}
                     onReviewClose={issue.status === 'pending_review' ? goToIssuesForReview : undefined}
                   />
                 ))}
@@ -338,7 +339,7 @@ export default function PropertyDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Resolved Issues ({doneIssues.length})</Text>
               {doneIssues.map((issue) => (
-                <IssueCard key={issue.id} issue={issue} />
+                <IssueCard key={issue.id} issue={issue} onPress={goToIssuesForReview} />
               ))}
             </View>
           ) : null
