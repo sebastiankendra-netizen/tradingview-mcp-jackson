@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   Modal,
   RefreshControl,
@@ -10,9 +9,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -217,13 +216,6 @@ export default function MyIssuesScreen() {
   const displayList =
     tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
 
-  const renderItem = useCallback(
-    ({ item }: { item: MaintenanceIssue }) => (
-      <IssueRow item={item} onPress={handleRowPress} />
-    ),
-    [handleRowPress],
-  );
-
   const renderModalContent = () => {
     if (!selected) return null;
     const status = selected.status as IssueStatus;
@@ -369,13 +361,12 @@ export default function MyIssuesScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={displayList}
-        keyExtractor={(i) => i.id}
-        renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {displayList.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons
               name={tab === 'done' ? 'checkmark-circle-outline' : tab === 'pending' ? 'time-outline' : 'clipboard-outline'}
@@ -387,8 +378,12 @@ export default function MyIssuesScreen() {
             </Text>
             {tab === 'open' && <Text style={styles.emptyText}>You're all caught up!</Text>}
           </View>
-        }
-      />
+        ) : (
+          displayList.map((item) => (
+            <IssueRow key={item.id} item={item} onPress={handleRowPress} />
+          ))
+        )}
+      </ScrollView>
 
       <TouchableOpacity
         style={styles.fab}
