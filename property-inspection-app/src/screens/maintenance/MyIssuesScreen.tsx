@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -380,7 +380,19 @@ export default function MyIssuesScreen() {
           </View>
         ) : (
           displayList.map((item) => (
-            <IssueRow key={item.id} item={item} onPress={handleRowPress} />
+            <TouchableOpacity
+              key={item.id}
+              style={styles.issueCard}
+              onPress={() => Alert.alert(item.title, 'Tap confirmed — touch works!')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.statusBar, { backgroundColor: STATUS_CONFIG[item.status as IssueStatus].color }]} />
+              <View style={styles.issueBody}>
+                <Text style={styles.issueTitle}>{item.title}</Text>
+                <Text style={styles.metaText}>{(item.property as any)?.name ?? ''}</Text>
+                <Text style={[styles.actionHintText, { marginTop: 4 }]}>Tap to act on this issue →</Text>
+              </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
