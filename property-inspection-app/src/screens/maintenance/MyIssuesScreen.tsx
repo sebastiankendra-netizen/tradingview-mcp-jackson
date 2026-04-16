@@ -5,15 +5,14 @@ import {
   FlatList,
   Image,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -44,9 +43,10 @@ function IssueRow({ item, onPress }: IssueRowProps) {
   const cfg = STATUS_CONFIG[item.status as IssueStatus];
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.issueCard, pressed && { opacity: 0.7 }]}
+    <TouchableOpacity
+      style={styles.issueCard}
       onPress={() => onPress(item)}
+      activeOpacity={0.7}
     >
       <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
 
@@ -91,7 +91,7 @@ function IssueRow({ item, onPress }: IssueRowProps) {
       </View>
 
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4, marginRight: 8 }} />
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
