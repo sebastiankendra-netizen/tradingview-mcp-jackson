@@ -25,8 +25,13 @@ import { useAuth } from '../../context/AuthContext';
 import { IssueStatus, MaintenanceIssue, MaintenanceStackParamList } from '../../types';
 
 type Nav = NativeStackNavigationProp<MaintenanceStackParamList>;
-
 type Tab = 'open' | 'pending' | 'done';
+
+const STATUS_CONFIG: Record<IssueStatus, { color: string; label: string; icon: string }> = {
+  open:           { color: Colors.danger,  label: 'Open',           icon: 'alert-circle' },
+  pending_review: { color: '#F39C12',      label: 'Awaiting Review', icon: 'time' },
+  done:           { color: Colors.success, label: 'Completed',      icon: 'checkmark-circle' },
+};
 
 export default function MyIssuesScreen() {
   const navigation = useNavigation<Nav>();
@@ -36,7 +41,7 @@ export default function MyIssuesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>('open');
 
-  // Submit-completion modal state
+  // Modal state
   const [selected, setSelected] = useState<MaintenanceIssue | null>(null);
   const [resolutionNote, setResolutionNote] = useState('');
   const [afterPhotoUri, setAfterPhotoUri] = useState<string | null>(null);
@@ -46,10 +51,7 @@ export default function MyIssuesScreen() {
     if (!profile) return;
     const { data } = await supabase
       .from('maintenance_issues')
-      .select(`
-        *,
-        property:properties(id,name,address,city)
-      `)
+      .select('*, property:properties(id,name,address,city)')
       .or(`assigned_to.eq.${profile.id},created_by.eq.${profile.id}`)
       .order('created_at', { ascending: false });
     setIssues((data ?? []) as MaintenanceIssue[]);
@@ -64,6 +66,16 @@ export default function MyIssuesScreen() {
     setRefreshing(false);
   }, [load]);
 
+  function closeModal() {
+    setSelected(null);
+    setAfterPhotoUri(null);
+    setResolutionNote('');
+  }
+
+  function openIssue(item: MaintenanceIssue) {
+    setSelected(item);
+  }
+
   async function handleAddAfterPhoto() {
     Alert.alert('Add Completion Photo', 'Choose an option', [
       {
@@ -74,10 +86,7 @@ export default function MyIssuesScreen() {
             Alert.alert('Camera Permission Required', 'Please allow camera access in Settings.');
             return;
           }
-          const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            quality: 0.75,
-          });
+          const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75 });
           if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
         },
       },
@@ -89,10 +98,7 @@ export default function MyIssuesScreen() {
             Alert.alert('Permission Required', 'Please allow photo library access.');
             return;
           }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.75,
-          });
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75 });
           if (!result.canceled) setAfterPhotoUri(result.assets[0].uri);
         },
       },
@@ -109,7 +115,6 @@ export default function MyIssuesScreen() {
 
     setSubmitting(true);
     try {
-      // Upload after photo
       const ext = afterPhotoUri.split('.').pop() ?? 'jpg';
       const fileName = `after_${Date.now()}.${ext}`;
       const storagePath = `issues/${selected.id}/${fileName}`;
@@ -122,13 +127,9 @@ export default function MyIssuesScreen() {
         photo_type: 'after',
       });
 
-      // Update issue status → pending_review
       const { error } = await supabase
         .from('maintenance_issues')
-        .update({
-          status: 'pending_review',
-          resolution_notes: resolutionNote.trim() || null,
-        })
+        .update({ status: 'pending_review', resolution_notes: resolutionNote.trim() || null })
         .eq('id', selected.id);
 
       if (error) {
@@ -140,17 +141,11 @@ export default function MyIssuesScreen() {
       setIssues((prev) =>
         prev.map((i) =>
           i.id === selected.id
-            ? {
-                ...i,
-                status: 'pending_review' as IssueStatus,
-                resolution_notes: resolutionNote.trim() || undefined,
-              }
+            ? { ...i, status: 'pending_review' as IssueStatus, resolution_notes: resolutionNote.trim() || undefined }
             : i,
         ),
       );
-      setSelected(null);
-      setResolutionNote('');
-      setAfterPhotoUri(null);
+      closeModal();
     } catch (err: any) {
       Alert.alert('Upload Failed', err.message ?? 'Could not submit completion photo.');
     } finally {
@@ -158,62 +153,184 @@ export default function MyIssuesScreen() {
     }
   }
 
-  const openList = issues.filter((i) => i.status === 'open');
+  const openList    = issues.filter((i) => i.status === 'open');
   const pendingList = issues.filter((i) => i.status === 'pending_review');
-  const doneList = issues.filter((i) => i.status === 'done');
+  const doneList    = issues.filter((i) => i.status === 'done');
 
   const displayList =
     tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
 
+  // ── Issue card ────────────────────────────────────────────────────────────
   const IssueRow = ({ item }: { item: MaintenanceIssue }) => {
-    const status = item.status as IssueStatus;
-    const isOpen = status === 'open';
-    const isPending = status === 'pending_review';
+    const cfg = STATUS_CONFIG[item.status as IssueStatus];
+    const isOpen = item.status === 'open';
 
     return (
-      <View style={[styles.issueCard, !isOpen && styles.issueCardDimmed]}>
-        <View
-          style={[
-            styles.statusDot,
-            {
-              backgroundColor: isOpen
-                ? Colors.danger
-                : isPending
-                  ? '#F39C12'
-                  : Colors.success,
-            },
-          ]}
-        />
+      <TouchableOpacity
+        style={styles.issueCard}
+        onPress={() => openIssue(item)}
+        activeOpacity={0.75}
+      >
+        {/* colour bar on left */}
+        <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
+
         <View style={styles.issueBody}>
+          {/* status pill */}
+          <View style={[styles.pill, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
+            <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
+            <Text style={[styles.pillText, { color: cfg.color }]}>{cfg.label}</Text>
+          </View>
+
           <Text style={styles.issueTitle} numberOfLines={2}>{item.title}</Text>
+
           <View style={styles.metaRow}>
             <Ionicons name="business-outline" size={12} color={Colors.textMuted} />
             <Text style={styles.metaText}>{(item.property as any)?.name ?? 'Unknown property'}</Text>
             <Text style={styles.dot}>·</Text>
             <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d')}</Text>
+            <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
           </View>
-          {isPending && (
-            <Text style={styles.awaitingLabel}>⏳ Awaiting manager review</Text>
-          )}
-          {status === 'done' && item.resolution_notes && (
-            <Text style={styles.resolvedNote} numberOfLines={1}>
-              ✓ {item.resolution_notes}
-            </Text>
-          )}
 
+          {item.description ? (
+            <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
+          ) : null}
+
+          {/* action hint */}
           {isOpen && (
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={() => setSelected(item)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="camera" size={14} color="#fff" />
-              <Text style={styles.submitBtnText}>Submit Completion Photo</Text>
-            </TouchableOpacity>
+            <View style={styles.actionHint}>
+              <Ionicons name="camera-outline" size={13} color={Colors.primary} />
+              <Text style={styles.actionHintText}>Tap to submit completion photo</Text>
+            </View>
+          )}
+          {item.status === 'pending_review' && (
+            <View style={styles.actionHint}>
+              <Ionicons name="hourglass-outline" size={13} color="#F39C12" />
+              <Text style={[styles.actionHintText, { color: '#F39C12' }]}>Awaiting manager review</Text>
+            </View>
+          )}
+          {item.status === 'done' && (
+            <View style={styles.actionHint}>
+              <Ionicons name="checkmark-circle-outline" size={13} color={Colors.success} />
+              <Text style={[styles.actionHintText, { color: Colors.success }]}>Closed by manager</Text>
+            </View>
           )}
         </View>
-      </View>
+
+        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4 }} />
+      </TouchableOpacity>
+    );
+  };
+
+  // ── Modal content changes based on status ────────────────────────────────
+  const renderModalContent = () => {
+    if (!selected) return null;
+    const status = selected.status as IssueStatus;
+
+    return (
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Issue header */}
+        <View style={[styles.modalStatusPill, { backgroundColor: STATUS_CONFIG[status].color + '18' }]}>
+          <Ionicons name={STATUS_CONFIG[status].icon as any} size={14} color={STATUS_CONFIG[status].color} />
+          <Text style={[styles.modalStatusText, { color: STATUS_CONFIG[status].color }]}>
+            {STATUS_CONFIG[status].label}
+          </Text>
+        </View>
+
+        <Text style={styles.modalTitle}>{selected.title}</Text>
+        <Text style={styles.modalProp}>{(selected.property as any)?.name ?? ''}</Text>
+        {selected.description ? (
+          <Text style={styles.modalDesc}>{selected.description}</Text>
+        ) : null}
+        <Text style={styles.modalMeta}>
+          Reported {format(new Date(selected.created_at), 'MMM d, yyyy')}
+        </Text>
+
+        {/* ── OPEN: submit completion photo ── */}
+        {status === 'open' && (
+          <>
+            <View style={styles.divider} />
+            <Text style={styles.sectionHead}>Mark as Complete</Text>
+            <Text style={styles.modalHint}>
+              Take or upload an after photo showing the completed work. A manager will review it before closing the issue.
+            </Text>
+
+            <Text style={styles.modalLabel}>Completion Photo *</Text>
+            {afterPhotoUri ? (
+              <View style={styles.photoPreview}>
+                <Image source={{ uri: afterPhotoUri }} style={styles.photoImage} resizeMode="cover" />
+                <TouchableOpacity style={styles.removePhotoBtn} onPress={() => setAfterPhotoUri(null)}>
+                  <Ionicons name="close-circle" size={26} color={Colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.photoBtn} onPress={handleAddAfterPhoto} activeOpacity={0.8}>
+                <Ionicons name="camera-outline" size={22} color={Colors.primary} />
+                <Text style={styles.photoBtnText}>Add After Photo</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="What was done to resolve this?"
+              placeholderTextColor={Colors.textMuted}
+              value={resolutionNote}
+              onChangeText={setResolutionNote}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+              onPress={submitCompletion}
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={18} color="#fff" />
+                  <Text style={styles.submitBtnText}>Submit for Manager Review</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ── PENDING: read-only awaiting review ── */}
+        {status === 'pending_review' && (
+          <View style={styles.infoBox}>
+            <Ionicons name="time-outline" size={32} color="#F39C12" />
+            <Text style={styles.infoBoxTitle}>Submitted for Review</Text>
+            <Text style={styles.infoBoxBody}>
+              Your completion photo has been submitted. A manager will review the work and close the issue.
+            </Text>
+            {selected.resolution_notes ? (
+              <Text style={styles.infoBoxNote}>Your note: "{selected.resolution_notes}"</Text>
+            ) : null}
+          </View>
+        )}
+
+        {/* ── DONE: completion summary ── */}
+        {status === 'done' && (
+          <View style={[styles.infoBox, { borderColor: Colors.success + '40' }]}>
+            <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
+            <Text style={[styles.infoBoxTitle, { color: Colors.success }]}>Issue Closed</Text>
+            <Text style={styles.infoBoxBody}>
+              This issue was reviewed and closed by a manager.
+            </Text>
+            {selected.resolution_notes ? (
+              <Text style={styles.infoBoxNote}>Notes: "{selected.resolution_notes}"</Text>
+            ) : null}
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.cancelBtn} onPress={closeModal}>
+          <Text style={styles.cancelBtnText}>{status === 'open' ? 'Cancel' : 'Close'}</Text>
+        </TouchableOpacity>
+      </ScrollView>
     );
   };
 
@@ -240,30 +357,21 @@ export default function MyIssuesScreen() {
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'open' && styles.tabBtnActiveOpen]}
-          onPress={() => setTab('open')}
-        >
-          <Text style={[styles.tabLabel, tab === 'open' && { color: Colors.danger }]}>
-            Open ({openList.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'pending' && styles.tabBtnActivePending]}
-          onPress={() => setTab('pending')}
-        >
-          <Text style={[styles.tabLabel, tab === 'pending' && { color: '#F39C12' }]}>
-            Pending ({pendingList.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'done' && styles.tabBtnActiveDone]}
-          onPress={() => setTab('done')}
-        >
-          <Text style={[styles.tabLabel, tab === 'done' && { color: Colors.success }]}>
-            Done ({doneList.length})
-          </Text>
-        </TouchableOpacity>
+        {([
+          { key: 'open',    label: 'Open',    count: openList.length,    activeStyle: styles.tabBtnActiveOpen,    color: Colors.danger  },
+          { key: 'pending', label: 'Pending', count: pendingList.length, activeStyle: styles.tabBtnActivePending, color: '#F39C12'      },
+          { key: 'done',    label: 'Done',    count: doneList.length,    activeStyle: styles.tabBtnActiveDone,    color: Colors.success },
+        ] as const).map(({ key, label, count, activeStyle, color }) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.tabBtn, tab === key && activeStyle]}
+            onPress={() => setTab(key)}
+          >
+            <Text style={[styles.tabLabel, tab === key && { color }]}>
+              {label} {count > 0 && `(${count})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <FlatList
@@ -280,18 +388,14 @@ export default function MyIssuesScreen() {
               color={Colors.textMuted}
             />
             <Text style={styles.emptyTitle}>
-              {tab === 'done' ? 'No completed issues'
-                : tab === 'pending' ? 'Nothing awaiting review'
-                : 'No open issues'}
+              {tab === 'done' ? 'No completed issues' : tab === 'pending' ? 'Nothing awaiting review' : 'No open issues'}
             </Text>
-            <Text style={styles.emptyText}>
-              {tab === 'open' ? "You're all caught up!" : ''}
-            </Text>
+            {tab === 'open' && <Text style={styles.emptyText}>You're all caught up!</Text>}
           </View>
         }
       />
 
-      {/* FAB — report a new issue */}
+      {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('AddIssue')}
@@ -300,81 +404,17 @@ export default function MyIssuesScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
-      {/* Submit Completion modal */}
+      {/* Issue detail / action modal */}
       <Modal
         visible={selected !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => { setSelected(null); setAfterPhotoUri(null); setResolutionNote(''); }}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Submit Completion</Text>
-              <Text style={styles.modalIssueTitle} numberOfLines={3}>{selected?.title}</Text>
-              <Text style={styles.modalProp}>{(selected?.property as any)?.name ?? ''}</Text>
-
-              <Text style={styles.modalLabel}>After Photo *</Text>
-              <Text style={styles.modalHint}>
-                A manager will review this photo before closing the issue.
-              </Text>
-              {afterPhotoUri ? (
-                <View style={styles.photoPreview}>
-                  <Image source={{ uri: afterPhotoUri }} style={styles.photoImage} resizeMode="cover" />
-                  <TouchableOpacity
-                    style={styles.removePhotoBtn}
-                    onPress={() => setAfterPhotoUri(null)}
-                  >
-                    <Ionicons name="close-circle" size={26} color={Colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.photoBtn}
-                  onPress={handleAddAfterPhoto}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="camera-outline" size={22} color={Colors.primary} />
-                  <Text style={styles.photoBtnText}>Add After Photo</Text>
-                </TouchableOpacity>
-              )}
-
-              <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="What was done to resolve this?"
-                placeholderTextColor={Colors.textMuted}
-                value={resolutionNote}
-                onChangeText={setResolutionNote}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-
-              <TouchableOpacity
-                style={[styles.doneBtn, submitting && { opacity: 0.7 }]}
-                onPress={submitCompletion}
-                disabled={submitting}
-                activeOpacity={0.85}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="send" size={18} color="#fff" />
-                    <Text style={styles.doneBtnText}>Submit for Review</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => { setSelected(null); setAfterPhotoUri(null); setResolutionNote(''); }}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            {renderModalContent()}
           </View>
         </View>
       </Modal>
@@ -383,18 +423,14 @@ export default function MyIssuesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe:     { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
+  header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
   greeting: { ...Typography.bodySmall, color: Colors.textSecondary },
-  name: { ...Typography.h2 },
+  name:     { ...Typography.h2 },
   logoutBtn: { padding: 8 },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
+
+  tabRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   tabBtn: {
     flex: 1,
     borderRadius: Radius.md,
@@ -404,44 +440,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
   },
-  tabBtnActiveOpen: { borderColor: Colors.danger, backgroundColor: Colors.danger + '10' },
-  tabBtnActivePending: { borderColor: '#F39C12', backgroundColor: '#F39C1215' },
-  tabBtnActiveDone: { borderColor: Colors.success, backgroundColor: Colors.success + '10' },
+  tabBtnActiveOpen:    { borderColor: Colors.danger,  backgroundColor: Colors.danger  + '10' },
+  tabBtnActivePending: { borderColor: '#F39C12',       backgroundColor: '#F39C1215'           },
+  tabBtnActiveDone:    { borderColor: Colors.success,  backgroundColor: Colors.success + '10' },
   tabLabel: { ...Typography.label, color: Colors.textSecondary },
-  list: { padding: Spacing.md, paddingTop: 0, paddingBottom: Spacing.xxl },
+
+  list: { padding: Spacing.md, paddingTop: 0, paddingBottom: 100 },
+
   issueCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    padding: Spacing.md,
+    marginBottom: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
+    overflow: 'hidden',
     ...Shadow.card,
   },
-  issueCardDimmed: { opacity: 0.85 },
-  statusDot: { width: 10, height: 10, borderRadius: Radius.full, marginTop: 6 },
-  issueBody: { flex: 1 },
-  issueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  metaText: { ...Typography.caption },
-  dot: { color: Colors.textMuted, fontSize: 12 },
-  awaitingLabel: { ...Typography.caption, color: '#F39C12', marginTop: 4, fontWeight: '600' },
-  resolvedNote: { ...Typography.caption, color: Colors.success, marginTop: 2, fontStyle: 'italic' },
-  submitBtn: {
+  statusBar:  { width: 4, alignSelf: 'stretch' },
+  issueBody:  { flex: 1, padding: Spacing.md, gap: 4 },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: Spacing.sm,
-    backgroundColor: '#F39C12',
-    borderRadius: Radius.md,
-    paddingVertical: 10,
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
   },
-  submitBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  pillText:  { fontSize: 11, fontWeight: '700' },
+  issueTitle: { ...Typography.body, fontWeight: '700', marginBottom: 2 },
+  metaRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  metaText:  { ...Typography.caption },
+  dot:       { color: Colors.textMuted, fontSize: 12 },
+  descText:  { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
+  actionHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  actionHintText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },
-  emptyText: { ...Typography.bodySmall, textAlign: 'center' },
+  emptyText:  { ...Typography.bodySmall, textAlign: 'center' },
+
+  fab: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadow.card,
+    elevation: 6,
+  },
+
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: {
@@ -460,11 +514,26 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: Spacing.md,
   },
-  modalTitle: { ...Typography.h2, marginBottom: Spacing.sm },
-  modalIssueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
-  modalProp: { ...Typography.bodySmall, color: Colors.primary, marginBottom: Spacing.md },
-  modalLabel: { ...Typography.label, marginBottom: 4, marginTop: Spacing.sm },
-  modalHint: { ...Typography.caption, color: Colors.textMuted, marginBottom: 8 },
+  modalStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: Spacing.sm,
+  },
+  modalStatusText: { fontSize: 12, fontWeight: '700' },
+  modalTitle:  { ...Typography.h2, marginBottom: 4 },
+  modalProp:   { ...Typography.bodySmall, color: Colors.primary, marginBottom: 4 },
+  modalDesc:   { ...Typography.body, color: Colors.textSecondary, marginBottom: 4 },
+  modalMeta:   { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.sm },
+  divider:     { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
+  sectionHead: { ...Typography.h3, marginBottom: 4 },
+  modalLabel:  { ...Typography.label, marginBottom: 4, marginTop: Spacing.sm },
+  modalHint:   { ...Typography.caption, color: Colors.textMuted, marginBottom: 8 },
+
   photoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -480,14 +549,8 @@ const styles = StyleSheet.create({
   },
   photoBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
   photoPreview: { borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md },
-  photoImage: { width: '100%', height: 200 },
-  removePhotoBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#fff',
-    borderRadius: 13,
-  },
+  photoImage:   { width: '100%', height: 200 },
+  removePhotoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 13 },
   modalInput: {
     backgroundColor: Colors.background,
     borderRadius: Radius.md,
@@ -499,7 +562,7 @@ const styles = StyleSheet.create({
     minHeight: 70,
     marginBottom: Spacing.md,
   },
-  doneBtn: {
+  submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -507,21 +570,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#F39C12',
     borderRadius: Radius.md,
     height: 52,
+    marginTop: 4,
   },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  cancelBtn: { alignItems: 'center', padding: Spacing.md },
-  cancelBtnText: { ...Typography.body, color: Colors.textSecondary },
-  fab: {
-    position: 'absolute',
-    bottom: Spacing.xl,
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
+  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+
+  infoBox: {
     alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-    elevation: 6,
+    gap: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#F39C1240',
   },
+  infoBoxTitle: { ...Typography.h3, color: '#F39C12' },
+  infoBoxBody:  { ...Typography.body, textAlign: 'center', color: Colors.textSecondary },
+  infoBoxNote:  { ...Typography.bodySmall, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center' },
+
+  cancelBtn:     { alignItems: 'center', padding: Spacing.md, marginTop: 4 },
+  cancelBtnText: { ...Typography.body, color: Colors.textSecondary },
 });
