@@ -237,6 +237,13 @@ export default function PropertyDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
           <>
+            {/* VERSION BANNER - remove after confirming update */}
+            <View style={{ backgroundColor: '#FF0000', padding: 12, margin: 8, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '800', textAlign: 'center', fontSize: 16 }}>
+                ✅ NEW CODE LOADED — Tap issues below to manage
+              </Text>
+            </View>
+
             {/* Property info card */}
             <View style={styles.infoCard}>
               <View style={styles.infoRow}>
