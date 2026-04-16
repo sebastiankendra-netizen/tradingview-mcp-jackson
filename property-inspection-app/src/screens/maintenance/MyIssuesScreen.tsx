@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -43,10 +44,9 @@ function IssueRow({ item, onPress }: IssueRowProps) {
   const cfg = STATUS_CONFIG[item.status as IssueStatus];
 
   return (
-    <TouchableOpacity
-      style={styles.issueCard}
+    <Pressable
+      style={({ pressed }) => [styles.issueCard, pressed && { opacity: 0.7 }]}
       onPress={() => onPress(item)}
-      activeOpacity={0.7}
     >
       <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
 
@@ -91,7 +91,7 @@ function IssueRow({ item, onPress }: IssueRowProps) {
       </View>
 
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4, marginRight: 8 }} />
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
