@@ -27,12 +27,11 @@ type Nav = NativeStackNavigationProp<MaintenanceStackParamList>;
 type Tab = 'open' | 'pending' | 'done';
 
 const STATUS_CONFIG: Record<IssueStatus, { color: string; label: string; icon: string }> = {
-  open:           { color: Colors.danger,  label: 'Open',            icon: 'alert-circle'      },
-  pending_review: { color: '#F39C12',      label: 'Awaiting Review', icon: 'time'              },
-  done:           { color: Colors.success, label: 'Completed',       icon: 'checkmark-circle'  },
+  open:           { color: Colors.danger,  label: 'Open',            icon: 'alert-circle'     },
+  pending_review: { color: '#F39C12',      label: 'Awaiting Review', icon: 'time'             },
+  done:           { color: Colors.success, label: 'Completed',       icon: 'checkmark-circle' },
 };
 
-// ── Extracted outside component so FlatList never remounts rows ──────────────
 interface IssueRowProps {
   item: MaintenanceIssue;
   onPress: (item: MaintenanceIssue) => void;
@@ -40,7 +39,6 @@ interface IssueRowProps {
 
 function IssueRow({ item, onPress }: IssueRowProps) {
   const cfg = STATUS_CONFIG[item.status as IssueStatus];
-
   return (
     <TouchableOpacity
       style={styles.issueCard}
@@ -48,15 +46,12 @@ function IssueRow({ item, onPress }: IssueRowProps) {
       activeOpacity={0.7}
     >
       <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
-
       <View style={styles.issueBody}>
         <View style={[styles.pill, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
           <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
           <Text style={[styles.pillText, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
-
         <Text style={styles.issueTitle} numberOfLines={2}>{item.title}</Text>
-
         <View style={styles.metaRow}>
           <Ionicons name="business-outline" size={12} color={Colors.textMuted} />
           <Text style={styles.metaText}>{(item.property as any)?.name ?? 'Unknown property'}</Text>
@@ -64,11 +59,6 @@ function IssueRow({ item, onPress }: IssueRowProps) {
           <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
           <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
         </View>
-
-        {item.description ? (
-          <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
-        ) : null}
-
         {item.status === 'open' && (
           <View style={styles.actionHint}>
             <Ionicons name="camera-outline" size={13} color={Colors.primary} />
@@ -88,12 +78,10 @@ function IssueRow({ item, onPress }: IssueRowProps) {
           </View>
         )}
       </View>
-
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4, marginRight: 8 }} />
     </TouchableOpacity>
   );
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function MyIssuesScreen() {
   const navigation = useNavigation<Nav>();
@@ -154,8 +142,8 @@ export default function MyIssuesScreen() {
       {
         text: 'Choose from Library',
         onPress: async () => {
-          const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (libPerm.status !== 'granted') {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
             Alert.alert('Permission Required', 'Please allow photo library access.');
             return;
           }
@@ -170,7 +158,7 @@ export default function MyIssuesScreen() {
   async function submitCompletion() {
     if (!selected || !profile) return;
     if (!afterPhotoUri) {
-      Alert.alert('Photo Required', 'Please attach a completion photo before submitting.');
+      Alert.alert('Photo Required', 'You must attach a completion photo before submitting. This is required for accountability.');
       return;
     }
     setSubmitting(true);
@@ -212,9 +200,7 @@ export default function MyIssuesScreen() {
   const openList    = issues.filter((i) => i.status === 'open');
   const pendingList = issues.filter((i) => i.status === 'pending_review');
   const doneList    = issues.filter((i) => i.status === 'done');
-
-  const displayList =
-    tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
+  const displayList = tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
 
   const renderModalContent = () => {
     if (!selected) return null;
@@ -227,25 +213,24 @@ export default function MyIssuesScreen() {
           <Ionicons name={cfg.icon as any} size={14} color={cfg.color} />
           <Text style={[styles.modalStatusText, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
-
         <Text style={styles.modalTitle}>{selected.title}</Text>
         <Text style={styles.modalProp}>{(selected.property as any)?.name ?? ''}</Text>
-        {selected.description ? (
-          <Text style={styles.modalDesc}>{selected.description}</Text>
-        ) : null}
-        <Text style={styles.modalMeta}>
-          Reported {format(new Date(selected.created_at), 'MMM d, yyyy')}
-        </Text>
+        {selected.description ? <Text style={styles.modalDesc}>{selected.description}</Text> : null}
+        <Text style={styles.modalMeta}>Reported {format(new Date(selected.created_at), 'MMM d, yyyy')}</Text>
 
         {status === 'open' && (
           <>
             <View style={styles.divider} />
             <Text style={styles.sectionHead}>Mark as Complete</Text>
-            <Text style={styles.modalHint}>
-              Take an after photo showing the completed work. A manager will review it before closing.
-            </Text>
 
-            <Text style={styles.modalLabel}>Completion Photo *</Text>
+            {/* Required photo indicator */}
+            <View style={styles.requiredRow}>
+              <Ionicons name="camera" size={16} color={afterPhotoUri ? Colors.success : Colors.danger} />
+              <Text style={[styles.requiredLabel, { color: afterPhotoUri ? Colors.success : Colors.danger }]}>
+                {afterPhotoUri ? 'Completion photo added ✓' : 'Completion photo required *'}
+              </Text>
+            </View>
+
             {afterPhotoUri ? (
               <View style={styles.photoPreview}>
                 <Image source={{ uri: afterPhotoUri }} style={styles.photoImage} resizeMode="cover" />
@@ -256,11 +241,11 @@ export default function MyIssuesScreen() {
             ) : (
               <TouchableOpacity style={styles.photoBtn} onPress={handleAddAfterPhoto} activeOpacity={0.8}>
                 <Ionicons name="camera-outline" size={22} color={Colors.primary} />
-                <Text style={styles.photoBtnText}>Add After Photo</Text>
+                <Text style={styles.photoBtnText}>Take / Upload Photo</Text>
               </TouchableOpacity>
             )}
 
-            <Text style={styles.modalLabel}>Resolution Note (optional)</Text>
+            <Text style={styles.modalLabel}>Notes (optional)</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="What was done to resolve this?"
@@ -273,7 +258,7 @@ export default function MyIssuesScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+              style={[styles.submitBtn, (!afterPhotoUri || submitting) && styles.submitBtnDisabled]}
               onPress={submitCompletion}
               disabled={submitting}
               activeOpacity={0.85}
@@ -287,6 +272,11 @@ export default function MyIssuesScreen() {
                 </>
               )}
             </TouchableOpacity>
+            {!afterPhotoUri && (
+              <Text style={styles.photoRequiredNote}>
+                A photo is required before you can submit.
+              </Text>
+            )}
           </>
         )}
 
@@ -294,12 +284,8 @@ export default function MyIssuesScreen() {
           <View style={[styles.infoBox, { borderColor: '#F39C1240' }]}>
             <Ionicons name="time-outline" size={32} color="#F39C12" />
             <Text style={[styles.infoBoxTitle, { color: '#F39C12' }]}>Submitted for Review</Text>
-            <Text style={styles.infoBoxBody}>
-              Your completion photo has been submitted. A manager will review and close the issue.
-            </Text>
-            {selected.resolution_notes ? (
-              <Text style={styles.infoBoxNote}>Your note: "{selected.resolution_notes}"</Text>
-            ) : null}
+            <Text style={styles.infoBoxBody}>Your completion photo has been submitted. A manager will review and close the issue.</Text>
+            {selected.resolution_notes ? <Text style={styles.infoBoxNote}>Your note: "{selected.resolution_notes}"</Text> : null}
           </View>
         )}
 
@@ -307,12 +293,8 @@ export default function MyIssuesScreen() {
           <View style={[styles.infoBox, { borderColor: Colors.success + '40' }]}>
             <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
             <Text style={[styles.infoBoxTitle, { color: Colors.success }]}>Issue Closed</Text>
-            <Text style={styles.infoBoxBody}>
-              This issue was reviewed and closed by a manager.
-            </Text>
-            {selected.resolution_notes ? (
-              <Text style={styles.infoBoxNote}>Notes: "{selected.resolution_notes}"</Text>
-            ) : null}
+            <Text style={styles.infoBoxBody}>This issue was reviewed and closed by a manager.</Text>
+            {selected.resolution_notes ? <Text style={styles.infoBoxNote}>Notes: "{selected.resolution_notes}"</Text> : null}
           </View>
         )}
 
@@ -380,37 +362,16 @@ export default function MyIssuesScreen() {
           </View>
         ) : (
           displayList.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.issueCard}
-              onPress={() => Alert.alert(item.title, 'Tap confirmed — touch works!')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.statusBar, { backgroundColor: STATUS_CONFIG[item.status as IssueStatus].color }]} />
-              <View style={styles.issueBody}>
-                <Text style={styles.issueTitle}>{item.title}</Text>
-                <Text style={styles.metaText}>{(item.property as any)?.name ?? ''}</Text>
-                <Text style={[styles.actionHintText, { marginTop: 4 }]}>Tap to act on this issue →</Text>
-              </View>
-            </TouchableOpacity>
+            <IssueRow key={item.id} item={item} onPress={handleRowPress} />
           ))
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddIssue')}
-        activeOpacity={0.85}
-      >
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddIssue')} activeOpacity={0.85}>
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
-      <Modal
-        visible={selected !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={closeModal}
-      >
+      <Modal visible={selected !== null} transparent animationType="slide" onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
@@ -423,22 +384,18 @@ export default function MyIssuesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:     { flex: 1, backgroundColor: Colors.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
-  greeting: { ...Typography.bodySmall, color: Colors.textSecondary },
-  name:     { ...Typography.h2 },
+  safe:      { flex: 1, backgroundColor: Colors.background },
+  centered:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
+  greeting:  { ...Typography.bodySmall, color: Colors.textSecondary },
+  name:      { ...Typography.h2 },
   logoutBtn: { padding: 8 },
 
   tabRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   tabBtn: {
-    flex: 1,
-    borderRadius: Radius.md,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
+    flex: 1, borderRadius: Radius.md, borderWidth: 2,
+    borderColor: Colors.border, paddingVertical: 10,
+    alignItems: 'center', backgroundColor: Colors.surface,
   },
   tabBtnActiveOpen:    { borderColor: Colors.danger,  backgroundColor: Colors.danger  + '10' },
   tabBtnActivePending: { borderColor: '#F39C12',       backgroundColor: '#F39C1215'           },
@@ -448,34 +405,23 @@ const styles = StyleSheet.create({
   list: { padding: Spacing.md, paddingTop: 0, paddingBottom: 100 },
 
   issueCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    overflow: 'hidden',
-    ...Shadow.card,
+    backgroundColor: Colors.surface, borderRadius: Radius.md,
+    marginBottom: Spacing.sm, flexDirection: 'row',
+    alignItems: 'flex-start', overflow: 'hidden', ...Shadow.card,
   },
-  statusBar:  { width: 4, alignSelf: 'stretch' },
-  issueBody:  { flex: 1, padding: Spacing.md, gap: 4 },
+  statusBar: { width: 4, alignSelf: 'stretch' },
+  issueBody: { flex: 1, padding: Spacing.md, gap: 4 },
   pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', borderRadius: Radius.full,
+    borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 4,
   },
-  pillText:  { fontSize: 11, fontWeight: '700' },
-  issueTitle: { ...Typography.body, fontWeight: '700', marginBottom: 2 },
-  metaRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  metaText:  { ...Typography.caption },
-  dot:       { color: Colors.textMuted, fontSize: 12 },
-  descText:  { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
-  actionHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  pillText:       { fontSize: 11, fontWeight: '700' },
+  issueTitle:     { ...Typography.body, fontWeight: '700', marginBottom: 2 },
+  metaRow:        { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  metaText:       { ...Typography.caption },
+  dot:            { color: Colors.textMuted, fontSize: 12 },
+  actionHint:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   actionHintText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
@@ -483,34 +429,20 @@ const styles = StyleSheet.create({
   emptyText:  { ...Typography.bodySmall, textAlign: 'center' },
 
   fab: {
-    position: 'absolute',
-    bottom: Spacing.xl,
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-    elevation: 6,
+    position: 'absolute', bottom: Spacing.xl, right: Spacing.lg,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    ...Shadow.card, elevation: 6,
   },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
-    maxHeight: '92%',
+    backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: Spacing.lg, paddingBottom: Spacing.xxl, maxHeight: '92%',
   },
   modalHandle: {
-    width: 40, height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: Radius.full,
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
+    width: 40, height: 4, backgroundColor: Colors.border,
+    borderRadius: Radius.full, alignSelf: 'center', marginBottom: Spacing.md,
   },
   modalStatusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -523,19 +455,21 @@ const styles = StyleSheet.create({
   modalDesc:   { ...Typography.body, color: Colors.textSecondary, marginBottom: 4 },
   modalMeta:   { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.sm },
   divider:     { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.md },
-  sectionHead: { ...Typography.h3, marginBottom: 4 },
+  sectionHead: { ...Typography.h3, marginBottom: Spacing.sm },
   modalLabel:  { ...Typography.label, marginBottom: 4, marginTop: Spacing.sm },
-  modalHint:   { ...Typography.caption, color: Colors.textMuted, marginBottom: 8 },
+
+  requiredRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  requiredLabel: { fontSize: 13, fontWeight: '700' },
 
   photoBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: Colors.background, borderRadius: Radius.md,
     borderWidth: 1.5, borderColor: Colors.primary, borderStyle: 'dashed',
-    height: 60, marginBottom: Spacing.md,
+    height: 64, marginBottom: Spacing.md,
   },
-  photoBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
-  photoPreview: { borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md },
-  photoImage:   { width: '100%', height: 200 },
+  photoBtnText:   { ...Typography.body, color: Colors.primary, fontWeight: '600' },
+  photoPreview:   { borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md },
+  photoImage:     { width: '100%', height: 200 },
   removePhotoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 13 },
   modalInput: {
     backgroundColor: Colors.background, borderRadius: Radius.md,
@@ -546,13 +480,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#F39C12', borderRadius: Radius.md, height: 52, marginTop: 4,
   },
-  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  submitBtnDisabled: { backgroundColor: Colors.textMuted },
+  submitBtnText:     { color: '#fff', fontSize: 15, fontWeight: '700' },
+  photoRequiredNote: { ...Typography.caption, color: Colors.danger, textAlign: 'center', marginTop: 8 },
 
   infoBox: {
-    alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.background, borderRadius: Radius.lg,
-    padding: Spacing.lg, marginVertical: Spacing.md,
-    borderWidth: 1,
+    alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.background,
+    borderRadius: Radius.lg, padding: Spacing.lg, marginVertical: Spacing.md, borderWidth: 1,
   },
   infoBoxTitle: { ...Typography.h3 },
   infoBoxBody:  { ...Typography.body, textAlign: 'center', color: Colors.textSecondary },
