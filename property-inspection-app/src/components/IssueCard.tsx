@@ -91,6 +91,14 @@ export default function IssueCard({
         )}
       </View>
 
+      {/* Tap hint */}
+      {onPress && (
+        <View style={styles.tapHint}>
+          <Ionicons name="chevron-forward-circle-outline" size={13} color={Colors.primary} />
+          <Text style={styles.tapHintText}>Tap to manage →</Text>
+        </View>
+      )}
+
       {/* Resolution note (done) */}
       {isDone && issue.resolution_notes ? (
         <Text style={styles.resolutionNote} numberOfLines={2}>
@@ -187,4 +195,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   actionBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  tapHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  tapHintText: { fontSize: 12, color: Colors.primary, fontWeight: '600' },
 });
