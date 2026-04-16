@@ -76,7 +76,6 @@ export default function IssuesScreen() {
 
   // Review & Close modal state
   const [reviewIssue, setReviewIssue] = useState<MaintenanceIssue | null>(null);
-  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
@@ -106,22 +105,16 @@ export default function IssuesScreen() {
 
   async function openReview(issue: MaintenanceIssue) {
     setReviewIssue(issue);
-    setBeforeUrl(null);
     setAfterUrl(null);
     setResolutionNote('');
 
     const photos = (issue.photos ?? []) as IssuePhoto[];
-    const beforePhoto = photos.find((p) => p.photo_type === 'before');
     const afterPhoto = photos.find((p) => p.photo_type === 'after');
 
-    if (beforePhoto || afterPhoto) {
+    if (afterPhoto) {
       setLoadingPhotos(true);
-      const [b, a] = await Promise.all([
-        beforePhoto ? getSignedUrl('inspection-photos', beforePhoto.storage_path) : Promise.resolve(null),
-        afterPhoto ? getSignedUrl('inspection-photos', afterPhoto.storage_path) : Promise.resolve(null),
-      ]);
-      setBeforeUrl(b);
-      setAfterUrl(a);
+      const url = await getSignedUrl('inspection-photos', afterPhoto.storage_path);
+      setAfterUrl(url);
       setLoadingPhotos(false);
     }
   }
@@ -297,29 +290,16 @@ export default function IssuesScreen() {
               {loadingPhotos ? (
                 <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.lg }} />
               ) : (
-                <View style={styles.photosRow}>
-                  <View style={styles.photoBlock}>
-                    <Text style={styles.photoCaption}>Before</Text>
-                    {beforeUrl ? (
-                      <Image source={{ uri: beforeUrl }} style={styles.photoImage} resizeMode="cover" />
-                    ) : (
-                      <View style={[styles.photoImage, styles.noPhoto]}>
-                        <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
-                        <Text style={styles.noPhotoText}>No photo</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.photoBlock}>
-                    <Text style={styles.photoCaption}>After</Text>
-                    {afterUrl ? (
-                      <Image source={{ uri: afterUrl }} style={styles.photoImage} resizeMode="cover" />
-                    ) : (
-                      <View style={[styles.photoImage, styles.noPhoto]}>
-                        <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
-                        <Text style={styles.noPhotoText}>No photo</Text>
-                      </View>
-                    )}
-                  </View>
+                <View style={styles.photoBlock}>
+                  <Text style={styles.photoCaption}>Completion Photo</Text>
+                  {afterUrl ? (
+                    <Image source={{ uri: afterUrl }} style={styles.photoImageFull} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.photoImageFull, styles.noPhoto]}>
+                      <Ionicons name="image-outline" size={40} color={Colors.textMuted} />
+                      <Text style={styles.noPhotoText}>No completion photo yet</Text>
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -457,12 +437,11 @@ const styles = StyleSheet.create({
   modalTitle: { ...Typography.h2, marginBottom: Spacing.sm },
   modalIssueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
   modalProp: { ...Typography.bodySmall, color: Colors.primary, marginBottom: Spacing.md },
-  photosRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  photoBlock: { flex: 1 },
-  photoCaption: { ...Typography.caption, fontWeight: '700', marginBottom: 4 },
-  photoImage: {
+  photoBlock: { marginBottom: Spacing.md },
+  photoCaption: { ...Typography.label, marginBottom: 8 },
+  photoImageFull: {
     width: '100%',
-    aspectRatio: 1,
+    height: 220,
     borderRadius: Radius.md,
     backgroundColor: Colors.background,
   },
