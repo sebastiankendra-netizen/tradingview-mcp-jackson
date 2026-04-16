@@ -28,10 +28,73 @@ type Nav = NativeStackNavigationProp<MaintenanceStackParamList>;
 type Tab = 'open' | 'pending' | 'done';
 
 const STATUS_CONFIG: Record<IssueStatus, { color: string; label: string; icon: string }> = {
-  open:           { color: Colors.danger,  label: 'Open',           icon: 'alert-circle' },
-  pending_review: { color: '#F39C12',      label: 'Awaiting Review', icon: 'time' },
-  done:           { color: Colors.success, label: 'Completed',      icon: 'checkmark-circle' },
+  open:           { color: Colors.danger,  label: 'Open',            icon: 'alert-circle'      },
+  pending_review: { color: '#F39C12',      label: 'Awaiting Review', icon: 'time'              },
+  done:           { color: Colors.success, label: 'Completed',       icon: 'checkmark-circle'  },
 };
+
+// ── Extracted outside component so FlatList never remounts rows ──────────────
+interface IssueRowProps {
+  item: MaintenanceIssue;
+  onPress: (item: MaintenanceIssue) => void;
+}
+
+function IssueRow({ item, onPress }: IssueRowProps) {
+  const cfg = STATUS_CONFIG[item.status as IssueStatus];
+
+  return (
+    <TouchableOpacity
+      style={styles.issueCard}
+      onPress={() => onPress(item)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
+
+      <View style={styles.issueBody}>
+        <View style={[styles.pill, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
+          <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
+          <Text style={[styles.pillText, { color: cfg.color }]}>{cfg.label}</Text>
+        </View>
+
+        <Text style={styles.issueTitle} numberOfLines={2}>{item.title}</Text>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="business-outline" size={12} color={Colors.textMuted} />
+          <Text style={styles.metaText}>{(item.property as any)?.name ?? 'Unknown property'}</Text>
+          <Text style={styles.dot}>·</Text>
+          <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
+          <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
+        </View>
+
+        {item.description ? (
+          <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
+        ) : null}
+
+        {item.status === 'open' && (
+          <View style={styles.actionHint}>
+            <Ionicons name="camera-outline" size={13} color={Colors.primary} />
+            <Text style={styles.actionHintText}>Tap to submit completion photo</Text>
+          </View>
+        )}
+        {item.status === 'pending_review' && (
+          <View style={styles.actionHint}>
+            <Ionicons name="hourglass-outline" size={13} color="#F39C12" />
+            <Text style={[styles.actionHintText, { color: '#F39C12' }]}>Awaiting manager review</Text>
+          </View>
+        )}
+        {item.status === 'done' && (
+          <View style={styles.actionHint}>
+            <Ionicons name="checkmark-circle-outline" size={13} color={Colors.success} />
+            <Text style={[styles.actionHintText, { color: Colors.success }]}>Closed by manager</Text>
+          </View>
+        )}
+      </View>
+
+      <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4, marginRight: 8 }} />
+    </TouchableOpacity>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function MyIssuesScreen() {
   const navigation = useNavigation<Nav>();
@@ -41,7 +104,6 @@ export default function MyIssuesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>('open');
 
-  // Modal state
   const [selected, setSelected] = useState<MaintenanceIssue | null>(null);
   const [resolutionNote, setResolutionNote] = useState('');
   const [afterPhotoUri, setAfterPhotoUri] = useState<string | null>(null);
@@ -72,9 +134,9 @@ export default function MyIssuesScreen() {
     setResolutionNote('');
   }
 
-  function openIssue(item: MaintenanceIssue) {
+  const handleRowPress = useCallback((item: MaintenanceIssue) => {
     setSelected(item);
-  }
+  }, []);
 
   async function handleAddAfterPhoto() {
     Alert.alert('Add Completion Photo', 'Choose an option', [
@@ -112,7 +174,6 @@ export default function MyIssuesScreen() {
       Alert.alert('Photo Required', 'Please attach a completion photo before submitting.');
       return;
     }
-
     setSubmitting(true);
     try {
       const ext = afterPhotoUri.split('.').pop() ?? 'jpg';
@@ -132,11 +193,7 @@ export default function MyIssuesScreen() {
         .update({ status: 'pending_review', resolution_notes: resolutionNote.trim() || null })
         .eq('id', selected.id);
 
-      if (error) {
-        Alert.alert('Error', error.message);
-        setSubmitting(false);
-        return;
-      }
+      if (error) { Alert.alert('Error', error.message); setSubmitting(false); return; }
 
       setIssues((prev) =>
         prev.map((i) =>
@@ -160,80 +217,23 @@ export default function MyIssuesScreen() {
   const displayList =
     tab === 'open' ? openList : tab === 'pending' ? pendingList : doneList;
 
-  // ── Issue card ────────────────────────────────────────────────────────────
-  const IssueRow = ({ item }: { item: MaintenanceIssue }) => {
-    const cfg = STATUS_CONFIG[item.status as IssueStatus];
-    const isOpen = item.status === 'open';
+  const renderItem = useCallback(
+    ({ item }: { item: MaintenanceIssue }) => (
+      <IssueRow item={item} onPress={handleRowPress} />
+    ),
+    [handleRowPress],
+  );
 
-    return (
-      <TouchableOpacity
-        style={styles.issueCard}
-        onPress={() => openIssue(item)}
-        activeOpacity={0.75}
-      >
-        {/* colour bar on left */}
-        <View style={[styles.statusBar, { backgroundColor: cfg.color }]} />
-
-        <View style={styles.issueBody}>
-          {/* status pill */}
-          <View style={[styles.pill, { backgroundColor: cfg.color + '18', borderColor: cfg.color }]}>
-            <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
-            <Text style={[styles.pillText, { color: cfg.color }]}>{cfg.label}</Text>
-          </View>
-
-          <Text style={styles.issueTitle} numberOfLines={2}>{item.title}</Text>
-
-          <View style={styles.metaRow}>
-            <Ionicons name="business-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.metaText}>{(item.property as any)?.name ?? 'Unknown property'}</Text>
-            <Text style={styles.dot}>·</Text>
-            <Ionicons name="calendar-outline" size={12} color={Colors.textMuted} />
-            <Text style={styles.metaText}>{format(new Date(item.created_at), 'MMM d, yyyy')}</Text>
-          </View>
-
-          {item.description ? (
-            <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
-          ) : null}
-
-          {/* action hint */}
-          {isOpen && (
-            <View style={styles.actionHint}>
-              <Ionicons name="camera-outline" size={13} color={Colors.primary} />
-              <Text style={styles.actionHintText}>Tap to submit completion photo</Text>
-            </View>
-          )}
-          {item.status === 'pending_review' && (
-            <View style={styles.actionHint}>
-              <Ionicons name="hourglass-outline" size={13} color="#F39C12" />
-              <Text style={[styles.actionHintText, { color: '#F39C12' }]}>Awaiting manager review</Text>
-            </View>
-          )}
-          {item.status === 'done' && (
-            <View style={styles.actionHint}>
-              <Ionicons name="checkmark-circle-outline" size={13} color={Colors.success} />
-              <Text style={[styles.actionHintText, { color: Colors.success }]}>Closed by manager</Text>
-            </View>
-          )}
-        </View>
-
-        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} style={{ marginTop: 4 }} />
-      </TouchableOpacity>
-    );
-  };
-
-  // ── Modal content changes based on status ────────────────────────────────
   const renderModalContent = () => {
     if (!selected) return null;
     const status = selected.status as IssueStatus;
+    const cfg = STATUS_CONFIG[status];
 
     return (
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Issue header */}
-        <View style={[styles.modalStatusPill, { backgroundColor: STATUS_CONFIG[status].color + '18' }]}>
-          <Ionicons name={STATUS_CONFIG[status].icon as any} size={14} color={STATUS_CONFIG[status].color} />
-          <Text style={[styles.modalStatusText, { color: STATUS_CONFIG[status].color }]}>
-            {STATUS_CONFIG[status].label}
-          </Text>
+        <View style={[styles.modalStatusPill, { backgroundColor: cfg.color + '18' }]}>
+          <Ionicons name={cfg.icon as any} size={14} color={cfg.color} />
+          <Text style={[styles.modalStatusText, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
 
         <Text style={styles.modalTitle}>{selected.title}</Text>
@@ -245,13 +245,12 @@ export default function MyIssuesScreen() {
           Reported {format(new Date(selected.created_at), 'MMM d, yyyy')}
         </Text>
 
-        {/* ── OPEN: submit completion photo ── */}
         {status === 'open' && (
           <>
             <View style={styles.divider} />
             <Text style={styles.sectionHead}>Mark as Complete</Text>
             <Text style={styles.modalHint}>
-              Take or upload an after photo showing the completed work. A manager will review it before closing the issue.
+              Take an after photo showing the completed work. A manager will review it before closing.
             </Text>
 
             <Text style={styles.modalLabel}>Completion Photo *</Text>
@@ -299,13 +298,12 @@ export default function MyIssuesScreen() {
           </>
         )}
 
-        {/* ── PENDING: read-only awaiting review ── */}
         {status === 'pending_review' && (
-          <View style={styles.infoBox}>
+          <View style={[styles.infoBox, { borderColor: '#F39C1240' }]}>
             <Ionicons name="time-outline" size={32} color="#F39C12" />
-            <Text style={styles.infoBoxTitle}>Submitted for Review</Text>
+            <Text style={[styles.infoBoxTitle, { color: '#F39C12' }]}>Submitted for Review</Text>
             <Text style={styles.infoBoxBody}>
-              Your completion photo has been submitted. A manager will review the work and close the issue.
+              Your completion photo has been submitted. A manager will review and close the issue.
             </Text>
             {selected.resolution_notes ? (
               <Text style={styles.infoBoxNote}>Your note: "{selected.resolution_notes}"</Text>
@@ -313,7 +311,6 @@ export default function MyIssuesScreen() {
           </View>
         )}
 
-        {/* ── DONE: completion summary ── */}
         {status === 'done' && (
           <View style={[styles.infoBox, { borderColor: Colors.success + '40' }]}>
             <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
@@ -344,7 +341,6 @@ export default function MyIssuesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Hello,</Text>
@@ -355,7 +351,6 @@ export default function MyIssuesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabRow}>
         {([
           { key: 'open',    label: 'Open',    count: openList.length,    activeStyle: styles.tabBtnActiveOpen,    color: Colors.danger  },
@@ -368,7 +363,7 @@ export default function MyIssuesScreen() {
             onPress={() => setTab(key)}
           >
             <Text style={[styles.tabLabel, tab === key && { color }]}>
-              {label} {count > 0 && `(${count})`}
+              {label}{count > 0 ? ` (${count})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
@@ -377,8 +372,8 @@ export default function MyIssuesScreen() {
       <FlatList
         data={displayList}
         keyExtractor={(i) => i.id}
+        renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        renderItem={({ item }) => <IssueRow item={item} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -395,7 +390,6 @@ export default function MyIssuesScreen() {
         }
       />
 
-      {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('AddIssue')}
@@ -404,7 +398,6 @@ export default function MyIssuesScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
-      {/* Issue detail / action modal */}
       <Modal
         visible={selected !== null}
         transparent
@@ -496,7 +489,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: Colors.surface,
@@ -507,22 +499,16 @@ const styles = StyleSheet.create({
     maxHeight: '92%',
   },
   modalHandle: {
-    width: 40,
-    height: 4,
+    width: 40, height: 4,
     backgroundColor: Colors.border,
     borderRadius: Radius.full,
     alignSelf: 'center',
     marginBottom: Spacing.md,
   },
   modalStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    borderRadius: Radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', borderRadius: Radius.full,
+    paddingHorizontal: 10, paddingVertical: 4, marginBottom: Spacing.sm,
   },
   modalStatusText: { fontSize: 12, fontWeight: '700' },
   modalTitle:  { ...Typography.h2, marginBottom: 4 },
@@ -535,56 +521,33 @@ const styles = StyleSheet.create({
   modalHint:   { ...Typography.caption, color: Colors.textMuted, marginBottom: 8 },
 
   photoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.background,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    borderStyle: 'dashed',
-    height: 60,
-    marginBottom: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: Colors.background, borderRadius: Radius.md,
+    borderWidth: 1.5, borderColor: Colors.primary, borderStyle: 'dashed',
+    height: 60, marginBottom: Spacing.md,
   },
   photoBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
   photoPreview: { borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md },
   photoImage:   { width: '100%', height: 200 },
   removePhotoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 13 },
   modalInput: {
-    backgroundColor: Colors.background,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.sm,
-    ...Typography.body,
-    color: Colors.textPrimary,
-    minHeight: 70,
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.background, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border, padding: Spacing.sm,
+    ...Typography.body, color: Colors.textPrimary, minHeight: 70, marginBottom: Spacing.md,
   },
   submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F39C12',
-    borderRadius: Radius.md,
-    height: 52,
-    marginTop: 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#F39C12', borderRadius: Radius.md, height: 52, marginTop: 4,
   },
   submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   infoBox: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.background,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginVertical: Spacing.md,
+    alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.background, borderRadius: Radius.lg,
+    padding: Spacing.lg, marginVertical: Spacing.md,
     borderWidth: 1,
-    borderColor: '#F39C1240',
   },
-  infoBoxTitle: { ...Typography.h3, color: '#F39C12' },
+  infoBoxTitle: { ...Typography.h3 },
   infoBoxBody:  { ...Typography.body, textAlign: 'center', color: Colors.textSecondary },
   infoBoxNote:  { ...Typography.bodySmall, color: Colors.textMuted, fontStyle: 'italic', textAlign: 'center' },
 
