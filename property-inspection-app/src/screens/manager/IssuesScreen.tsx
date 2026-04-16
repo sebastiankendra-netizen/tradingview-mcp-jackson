@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   Modal,
   RefreshControl,
@@ -41,6 +40,31 @@ const FILTER_CONFIG: Record<Filter, { label: string; color: string }> = {
   done:           { label: 'Done',         color: Colors.success },
   all:            { label: 'All',          color: Colors.primary },
 };
+
+interface FilterBtnProps {
+  value: Filter;
+  count?: number;
+  active: boolean;
+  onPress: () => void;
+}
+
+function FilterBtn({ value, count, active, onPress }: FilterBtnProps) {
+  const cfg = FILTER_CONFIG[value];
+  return (
+    <TouchableOpacity
+      style={[styles.filterBtn, active && { backgroundColor: cfg.color, borderColor: cfg.color }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{cfg.label}</Text>
+      {count !== undefined && (
+        <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
+          <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>{count}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
 
 export default function IssuesScreen() {
   const navigation = useNavigation<Nav>();
@@ -159,30 +183,6 @@ export default function IssuesScreen() {
   const pendingCount = issues.filter((i) => i.status === 'pending_review').length;
   const doneCount = issues.filter((i) => i.status === 'done').length;
 
-  const FilterBtn = ({ value, count }: { value: Filter; count?: number }) => {
-    const cfg = FILTER_CONFIG[value];
-    const active = filter === value;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.filterBtn,
-          active && { backgroundColor: cfg.color, borderColor: cfg.color },
-        ]}
-        onPress={() => setFilter(value)}
-        activeOpacity={0.8}
-      >
-        <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>{cfg.label}</Text>
-        {count !== undefined && (
-          <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
-            <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
-              {count}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -207,10 +207,10 @@ export default function IssuesScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
-        <FilterBtn value="pending_review" count={pendingCount} />
-        <FilterBtn value="open" count={openCount} />
-        <FilterBtn value="done" count={doneCount} />
-        <FilterBtn value="all" count={issues.length} />
+        <FilterBtn value="pending_review" count={pendingCount} active={filter === 'pending_review'} onPress={() => setFilter('pending_review')} />
+        <FilterBtn value="open" count={openCount} active={filter === 'open'} onPress={() => setFilter('open')} />
+        <FilterBtn value="done" count={doneCount} active={filter === 'done'} onPress={() => setFilter('done')} />
+        <FilterBtn value="all" count={issues.length} active={filter === 'all'} onPress={() => setFilter('all')} />
       </ScrollView>
 
       {/* Priority filter chips */}
@@ -238,20 +238,12 @@ export default function IssuesScreen() {
         </View>
       )}
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(i) => i.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        renderItem={({ item }) => (
-          <IssueCard
-            issue={item}
-            showProperty
-            onReviewClose={() => openReview(item)}
-            onReopen={() => reopenIssue(item)}
-          />
-        )}
+      <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons
               name={filter === 'pending_review' ? 'time-outline' : filter === 'open' ? 'checkmark-circle-outline' : 'documents-outline'}
@@ -269,8 +261,19 @@ export default function IssuesScreen() {
                 : ''}
             </Text>
           </View>
-        }
-      />
+        ) : (
+          filtered.map((item) => (
+            <IssueCard
+              key={item.id}
+              issue={item}
+              showProperty
+              onPress={() => openReview(item)}
+              onReviewClose={() => openReview(item)}
+              onReopen={() => reopenIssue(item)}
+            />
+          ))
+        )}
+      </ScrollView>
 
       {/* Review & Close Modal */}
       <Modal
