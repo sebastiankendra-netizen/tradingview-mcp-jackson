@@ -148,6 +148,16 @@ export default function IssuesScreen() {
 
   async function closeIssue() {
     if (!reviewIssue) return;
+
+    // A completion photo must exist — either submitted by the tech or added by the manager
+    if (!afterUrl && !newPhotoUri) {
+      Alert.alert(
+        'Photo Required',
+        'A completion photo is required before closing this issue. The maintenance tech must submit one, or you can add a photo here.',
+      );
+      return;
+    }
+
     setClosing(true);
 
     // Upload manager's photo if they added one
@@ -337,7 +347,21 @@ export default function IssuesScreen() {
                 <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.lg }} />
               ) : (
                 <View style={styles.photoBlock}>
-                  <Text style={styles.photoCaption}>Completion Photo</Text>
+                  <View style={styles.photoCaptionRow}>
+                    <Text style={styles.photoCaption}>Completion Photo</Text>
+                    {!afterUrl && !newPhotoUri && (
+                      <View style={styles.photoRequiredBadge}>
+                        <Ionicons name="alert-circle" size={12} color={Colors.danger} />
+                        <Text style={styles.photoRequiredBadgeText}>Required</Text>
+                      </View>
+                    )}
+                    {(afterUrl || newPhotoUri) && (
+                      <View style={styles.photoOkBadge}>
+                        <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
+                        <Text style={styles.photoOkBadgeText}>Photo added</Text>
+                      </View>
+                    )}
+                  </View>
                   {/* Show new photo if manager took one, else show submitted photo */}
                   {newPhotoUri ? (
                     <View>
@@ -376,9 +400,9 @@ export default function IssuesScreen() {
               />
 
               <TouchableOpacity
-                style={[styles.closeBtn, closing && { opacity: 0.7 }]}
+                style={[styles.closeBtn, (closing || (!afterUrl && !newPhotoUri)) && styles.closeBtnDisabled]}
                 onPress={closeIssue}
-                disabled={closing}
+                disabled={closing || (!afterUrl && !newPhotoUri)}
                 activeOpacity={0.85}
               >
                 {closing ? (
@@ -498,7 +522,12 @@ const styles = StyleSheet.create({
   modalIssueTitle: { ...Typography.body, fontWeight: '600', marginBottom: 4 },
   modalProp: { ...Typography.bodySmall, color: Colors.primary, marginBottom: Spacing.md },
   photoBlock: { marginBottom: Spacing.md },
-  photoCaption: { ...Typography.label, marginBottom: 8 },
+  photoCaptionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  photoCaption: { ...Typography.label },
+  photoRequiredBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.danger + '15', borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 },
+  photoRequiredBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.danger },
+  photoOkBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.success + '15', borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 },
+  photoOkBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.success },
   photoImageFull: {
     width: '100%',
     height: 220,
@@ -549,6 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     height: 52,
   },
+  closeBtnDisabled: { backgroundColor: Colors.textMuted },
   closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   cancelBtn: { alignItems: 'center', padding: Spacing.md },
   cancelBtnText: { ...Typography.body, color: Colors.textSecondary },

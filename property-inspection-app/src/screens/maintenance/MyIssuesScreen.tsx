@@ -260,7 +260,7 @@ export default function MyIssuesScreen() {
             <TouchableOpacity
               style={[styles.submitBtn, (!afterPhotoUri || submitting) && styles.submitBtnDisabled]}
               onPress={submitCompletion}
-              disabled={submitting}
+              disabled={!afterPhotoUri || submitting}
               activeOpacity={0.85}
             >
               {submitting ? (
