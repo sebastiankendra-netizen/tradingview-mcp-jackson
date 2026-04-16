@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getSignedUrl, supabase } from '../../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import { getSignedUrl, supabase, uploadPhoto } from '../../lib/supabase';
 import { Colors, Radius, Spacing, Typography } from '../../lib/theme';
 import IssueCard from '../../components/IssueCard';
 import {
@@ -77,6 +78,7 @@ export default function IssuesScreen() {
   // Review & Close modal state
   const [reviewIssue, setReviewIssue] = useState<MaintenanceIssue | null>(null);
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
+  const [newPhotoUri, setNewPhotoUri] = useState<string | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
   const [closing, setClosing] = useState(false);
@@ -103,9 +105,34 @@ export default function IssuesScreen() {
     setRefreshing(false);
   }, [load]);
 
+  async function handleAddPhoto() {
+    Alert.alert('Add Completion Photo', 'Choose an option', [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') { Alert.alert('Camera Permission Required'); return; }
+          const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75 });
+          if (!result.canceled) setNewPhotoUri(result.assets[0].uri);
+        },
+      },
+      {
+        text: 'Choose from Library',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') { Alert.alert('Permission Required'); return; }
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75 });
+          if (!result.canceled) setNewPhotoUri(result.assets[0].uri);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
   async function openReview(issue: MaintenanceIssue) {
     setReviewIssue(issue);
     setAfterUrl(null);
+    setNewPhotoUri(null);
     setResolutionNote('');
 
     const photos = (issue.photos ?? []) as IssuePhoto[];
@@ -122,6 +149,25 @@ export default function IssuesScreen() {
   async function closeIssue() {
     if (!reviewIssue) return;
     setClosing(true);
+
+    // Upload manager's photo if they added one
+    if (newPhotoUri) {
+      try {
+        const ext = newPhotoUri.split('.').pop() ?? 'jpg';
+        const fileName = `completion_${Date.now()}.${ext}`;
+        const storagePath = `issues/${reviewIssue.id}/${fileName}`;
+        await uploadPhoto('inspection-photos', storagePath, newPhotoUri);
+        await supabase.from('issue_photos').insert({
+          issue_id: reviewIssue.id,
+          storage_path: storagePath,
+          file_name: fileName,
+          photo_type: 'after',
+        });
+      } catch {
+        Alert.alert('Photo Upload Failed', 'Issue will still be closed.');
+      }
+    }
+
     const { error } = await supabase
       .from('maintenance_issues')
       .update({
@@ -292,7 +338,15 @@ export default function IssuesScreen() {
               ) : (
                 <View style={styles.photoBlock}>
                   <Text style={styles.photoCaption}>Completion Photo</Text>
-                  {afterUrl ? (
+                  {/* Show new photo if manager took one, else show submitted photo */}
+                  {newPhotoUri ? (
+                    <View>
+                      <Image source={{ uri: newPhotoUri }} style={styles.photoImageFull} resizeMode="cover" />
+                      <TouchableOpacity style={styles.replacePhotoBtn} onPress={() => setNewPhotoUri(null)}>
+                        <Ionicons name="close-circle" size={26} color={Colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : afterUrl ? (
                     <Image source={{ uri: afterUrl }} style={styles.photoImageFull} resizeMode="cover" />
                   ) : (
                     <View style={[styles.photoImageFull, styles.noPhoto]}>
@@ -300,6 +354,12 @@ export default function IssuesScreen() {
                       <Text style={styles.noPhotoText}>No completion photo yet</Text>
                     </View>
                   )}
+                  <TouchableOpacity style={styles.addPhotoBtn} onPress={handleAddPhoto} activeOpacity={0.8}>
+                    <Ionicons name="camera-outline" size={18} color={Colors.primary} />
+                    <Text style={styles.addPhotoBtnText}>
+                      {newPhotoUri || afterUrl ? 'Replace Photo' : 'Add Completion Photo'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -454,6 +514,20 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   noPhotoText: { ...Typography.caption, color: Colors.textMuted },
+  replacePhotoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#fff', borderRadius: 13 },
+  addPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: Spacing.sm,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: Radius.md,
+    paddingVertical: 10,
+  },
+  addPhotoBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
   modalLabel: { ...Typography.label, marginBottom: 6 },
   modalInput: {
     backgroundColor: Colors.background,
