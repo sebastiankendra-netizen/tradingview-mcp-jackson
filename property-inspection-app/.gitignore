@@ -12,3 +12,4 @@ web-build/
 web-build/
 .env
 .env.local
+package-lock.json
