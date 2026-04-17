@@ -196,6 +196,12 @@ export default function DashboardScreen() {
               <View style={styles.topActions}>
                 <TouchableOpacity
                   style={styles.iconBtn}
+                  onPress={() => navigation.navigate('Manuals')}
+                >
+                  <Ionicons name="library-outline" size={22} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconBtn}
                   onPress={() => navigation.navigate('AllIssues')}
                 >
                   <Ionicons name="warning-outline" size={22} color={Colors.primary} />
@@ -221,22 +227,6 @@ export default function DashboardScreen() {
               <StatCard icon="warning" value={stats.openIssues} label="Open Issues" color={Colors.danger} />
               <StatCard icon="documents" value={stats.recentSubmissions} label="Reports" color={Colors.accent} />
             </View>
-
-            {/* Company Manuals quick link */}
-            <TouchableOpacity
-              style={styles.manualsRow}
-              onPress={() => navigation.navigate('Manuals')}
-              activeOpacity={0.8}
-            >
-              <View style={styles.manualsIcon}>
-                <Ionicons name="library-outline" size={20} color={Colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.manualsRowTitle}>Company Manuals & Policies</Text>
-                <Text style={styles.manualsRowSub}>SOPs, HR docs, emergency procedures</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
 
             {/* Section header */}
             <View style={styles.sectionHeader}>
