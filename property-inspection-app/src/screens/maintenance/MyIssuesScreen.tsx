@@ -320,9 +320,14 @@ export default function MyIssuesScreen() {
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.name}>{profile?.full_name ?? 'Tech'}</Text>
         </View>
-        <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Manuals')} style={styles.headerBtn}>
+            <Ionicons name="library-outline" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={styles.headerBtn}>
+            <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.tabRow}>
@@ -386,10 +391,11 @@ export default function MyIssuesScreen() {
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: Colors.background },
   centered:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
-  greeting:  { ...Typography.bodySmall, color: Colors.textSecondary },
-  name:      { ...Typography.h2 },
-  logoutBtn: { padding: 8 },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
+  greeting:      { ...Typography.bodySmall, color: Colors.textSecondary },
+  name:          { ...Typography.h2 },
+  headerActions: { flexDirection: 'row', gap: 4 },
+  headerBtn:     { padding: 8 },
 
   tabRow: { flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   tabBtn: {

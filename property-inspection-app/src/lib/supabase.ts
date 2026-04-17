@@ -32,7 +32,29 @@ export async function getSignedUrl(
   return data.signedUrl;
 }
 
-/** Upload a file to Supabase storage. Returns the storage path or throws. */
+/** Upload any file to Supabase storage. Returns the storage path or throws. */
+export async function uploadFile(
+  bucket: string,
+  path: string,
+  uri: string,
+  mimeType = 'application/octet-stream',
+): Promise<string> {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const arrayBuffer = await new Response(blob).arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, arrayBuffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (error) throw error;
+  return path;
+}
+
+/** Upload a photo to Supabase storage. Returns the storage path or throws. */
 export async function uploadPhoto(
   bucket: string,
   path: string,

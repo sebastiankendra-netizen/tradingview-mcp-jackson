@@ -146,6 +146,21 @@ export interface ChecklistCategory {
   items: string[];
 }
 
+export interface CompanyDocument {
+  id: string;
+  title: string;
+  description?: string;
+  file_name: string;
+  storage_path: string;
+  file_size?: number;
+  mime_type?: string;
+  category: string;
+  uploaded_by?: string;
+  created_at: string;
+  updated_at: string;
+  uploader?: Profile;
+}
+
 // Navigation param types
 export type RootStackParamList = {
   Login: undefined;
@@ -163,17 +178,20 @@ export type ManagerStackParamList = {
   InspectionDetail: { inspectionId: string };
   AllIssues: undefined;
   AddIssue: undefined;
+  Manuals: undefined;
 };
 
 export type InspectorStackParamList = {
   MyProperties: undefined;
   ConductInspection: { propertyId: string; inspectionId?: string };
+  Manuals: undefined;
 };
 
 export type MaintenanceStackParamList = {
   MyIssues: undefined;
   IssueDetail: { issueId: string };
   AddIssue: undefined;
+  Manuals: undefined;
 };
 
 // Priority display helpers

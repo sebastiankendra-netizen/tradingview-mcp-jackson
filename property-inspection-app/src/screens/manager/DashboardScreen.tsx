@@ -222,6 +222,22 @@ export default function DashboardScreen() {
               <StatCard icon="documents" value={stats.recentSubmissions} label="Reports" color={Colors.accent} />
             </View>
 
+            {/* Company Manuals quick link */}
+            <TouchableOpacity
+              style={styles.manualsRow}
+              onPress={() => navigation.navigate('Manuals')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.manualsIcon}>
+                <Ionicons name="library-outline" size={20} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.manualsRowTitle}>Company Manuals & Policies</Text>
+                <Text style={styles.manualsRowSub}>SOPs, HR docs, emergency procedures</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             {/* Section header */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Properties</Text>
@@ -326,6 +342,26 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: Spacing.xxl, gap: Spacing.sm },
   emptyTitle: { ...Typography.h3, color: Colors.textSecondary },
   emptyText: { ...Typography.bodySmall, textAlign: 'center' },
+  manualsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Shadow.card,
+  },
+  manualsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualsRowTitle: { ...Typography.body, fontWeight: '600' },
+  manualsRowSub: { ...Typography.caption, color: Colors.textMuted },
   deleteAction: {
     backgroundColor: Colors.danger,
     justifyContent: 'center',

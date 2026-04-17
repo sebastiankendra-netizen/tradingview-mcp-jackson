@@ -4,6 +4,7 @@ import { Colors, Typography } from '../lib/theme';
 import { InspectorStackParamList } from '../types';
 import MyPropertiesScreen from '../screens/inspector/MyPropertiesScreen';
 import ConductInspectionScreen from '../screens/inspector/ConductInspectionScreen';
+import ManualsScreen from '../screens/ManualsScreen';
 
 const Stack = createNativeStackNavigator<InspectorStackParamList>();
 
@@ -26,6 +27,11 @@ export default function InspectorNavigator() {
         name="ConductInspection"
         component={ConductInspectionScreen}
         options={{ title: 'Inspection Checklist' }}
+      />
+      <Stack.Screen
+        name="Manuals"
+        component={ManualsScreen}
+        options={{ title: 'Company Manuals' }}
       />
     </Stack.Navigator>
   );

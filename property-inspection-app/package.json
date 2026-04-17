@@ -27,7 +27,8 @@
     "expo-constants": "~18.0.13",
     "expo-file-system": "~19.0.21",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "date-fns": "^3.6.0"
+    "date-fns": "^3.6.0",
+    "expo-document-picker": "~13.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

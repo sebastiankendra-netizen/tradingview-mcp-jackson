@@ -143,9 +143,14 @@ export default function MyPropertiesScreen() {
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.name}>{profile?.full_name ?? 'Inspector'}</Text>
         </View>
-        <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Manuals')} style={styles.headerBtn}>
+            <Ionicons name="library-outline" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={styles.headerBtn}>
+            <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -210,7 +215,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md },
   greeting: { ...Typography.bodySmall, color: Colors.textSecondary },
   name: { ...Typography.h2 },
-  logoutBtn: { padding: 8 },
+  headerActions: { flexDirection: 'row', gap: 4 },
+  headerBtn: { padding: 8 },
   list: { padding: Spacing.md, paddingTop: 0, paddingBottom: Spacing.xxl },
   sectionTitle: { ...Typography.h3, marginBottom: Spacing.md },
   propertyCard: {
