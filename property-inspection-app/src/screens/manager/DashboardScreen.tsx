@@ -198,7 +198,7 @@ export default function DashboardScreen() {
                   style={styles.iconBtn}
                   onPress={() => navigation.navigate('Manuals')}
                 >
-                  <Ionicons name="library-outline" size={22} color={Colors.primary} />
+                  <Ionicons name="book-outline" size={22} color={Colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconBtn}

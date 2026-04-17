@@ -208,7 +208,7 @@ export default function ManualsScreen() {
       >
         {filtered.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="library-outline" size={52} color={Colors.textMuted} />
+            <Ionicons name="book-outline" size={52} color={Colors.textMuted} />
             <Text style={styles.emptyTitle}>No documents yet</Text>
             <Text style={styles.emptyText}>
               {isManager

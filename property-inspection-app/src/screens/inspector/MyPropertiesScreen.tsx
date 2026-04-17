@@ -145,7 +145,7 @@ export default function MyPropertiesScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={() => navigation.navigate('Manuals')} style={styles.headerBtn}>
-            <Ionicons name="library-outline" size={22} color={Colors.primary} />
+            <Ionicons name="book-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={signOut} style={styles.headerBtn}>
             <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
