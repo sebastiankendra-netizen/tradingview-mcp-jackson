@@ -195,10 +195,11 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.topActions}>
                 <TouchableOpacity
-                  style={styles.iconBtn}
+                  style={styles.manualsBtn}
                   onPress={() => navigation.navigate('Manuals')}
                 >
-                  <Ionicons name="book-outline" size={22} color={Colors.primary} />
+                  <Ionicons name="book-outline" size={16} color="#fff" />
+                  <Text style={styles.manualsBtnText}>Manuals</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconBtn}
@@ -284,7 +285,13 @@ const styles = StyleSheet.create({
   },
   greeting: { ...Typography.bodySmall, color: Colors.textSecondary },
   name: { ...Typography.h2 },
-  topActions: { flexDirection: 'row', gap: 4 },
+  topActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  manualsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.primary, borderRadius: Radius.full,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  manualsBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   iconBtn: { padding: 8, position: 'relative' },
   badge: {
     position: 'absolute',
