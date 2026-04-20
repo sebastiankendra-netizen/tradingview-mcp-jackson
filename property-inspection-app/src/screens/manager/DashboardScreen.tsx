@@ -196,7 +196,7 @@ export default function DashboardScreen() {
                   onPress={() => navigation.navigate('Tasks')}
                 >
                   <Ionicons name="checkbox-outline" size={16} color="#fff" />
-                  <Text style={styles.manualsBtnText}>Tasks</Text>
+                  <Text style={styles.manualsBtnText}>To-Do List</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.manualsBtn}
@@ -204,7 +204,7 @@ export default function DashboardScreen() {
                 >
                   <Ionicons name="warning-outline" size={16} color="#fff" />
                   <Text style={styles.manualsBtnText}>
-                    Issues{stats.openIssues > 0 ? ` (${stats.openIssues})` : ''}
+                    Maintenance Issues{stats.openIssues > 0 ? ` (${stats.openIssues})` : ''}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
