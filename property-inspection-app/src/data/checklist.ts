@@ -4,7 +4,7 @@ export const CHECKLIST_CATEGORIES: ChecklistCategory[] = [
   {
     name: 'Exterior',
     items: [
-      'Roof condition (missing/damaged shingles)',
+      'Roof condition',
       'Gutters & downspouts',
       'Exterior walls / siding / paint',
       'Foundation & slab',
@@ -14,7 +14,6 @@ export const CHECKLIST_CATEGORIES: ChecklistCategory[] = [
       'Landscaping & lawn',
       'Fencing & gates',
       'Exterior lighting',
-      'Hurricane shutters / storm protection',
       'Storm drainage & grading',
     ],
   },

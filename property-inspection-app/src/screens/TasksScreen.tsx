@@ -2,13 +2,17 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -385,11 +389,13 @@ export default function TasksScreen() {
       </Modal>
 
       {/* Create Task Modal */}
-      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
+      <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); setShowCreate(false); }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
               <Text style={styles.modalTitle}>New Task</Text>
 
               <Text style={styles.inputLabel}>Title *</Text>
@@ -484,12 +490,14 @@ export default function TasksScreen() {
                 }
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { Keyboard.dismiss(); setShowCreate(false); }}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
+        </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Property Picker */}
