@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Colors, Radius, Shadow, Spacing, Typography } from '../../lib/theme';
-import { CHECKLIST_CATEGORIES, buildChecklistItems } from '../../data/checklist';
+import { CHECKLIST_CATEGORIES, EXTERIOR_CHECKLIST_CATEGORIES, buildChecklistItems } from '../../data/checklist';
 import { useAuth } from '../../context/AuthContext';
 import ChecklistItemRow from '../../components/ChecklistItemRow';
 import ConditionStars from '../../components/ConditionStars';
@@ -62,7 +62,7 @@ export default function ConductInspectionScreen() {
       .order('sort_order');
 
     if (!items || items.length === 0) {
-      const seed = buildChecklistItems(inspectionId);
+      const seed = buildChecklistItems(inspectionId, prop?.exterior_only ?? false);
       const { data: inserted } = await supabase
         .from('checklist_items')
         .insert(seed)
@@ -195,7 +195,8 @@ export default function ConductInspectionScreen() {
   }
 
   function validatePhotos() {
-    const sectionsNeedingPhoto = CHECKLIST_CATEGORIES
+    const activeCategories = property?.exterior_only ? EXTERIOR_CHECKLIST_CATEGORIES : CHECKLIST_CATEGORIES;
+    const sectionsNeedingPhoto = activeCategories
       .map((cat) => cat.name)
       .filter((name) => categoryNeedsPhoto(name) && photosForCategory(name).length === 0);
 
@@ -289,7 +290,7 @@ export default function ConductInspectionScreen() {
           </View>
 
           {/* Checklist categories */}
-          {CHECKLIST_CATEGORIES.map((cat) => {
+          {(property?.exterior_only ? EXTERIOR_CHECKLIST_CATEGORIES : CHECKLIST_CATEGORIES).map((cat) => {
             const catItems = checklistItems.filter((i) => i.category === cat.name);
             const photos = photosForCategory(cat.name);
             const needsPhoto = categoryNeedsPhoto(cat.name);

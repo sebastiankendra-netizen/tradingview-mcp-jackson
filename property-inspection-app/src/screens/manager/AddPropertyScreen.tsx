@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Switch,
   StyleSheet,
   Text,
   TextInput,
@@ -25,6 +26,7 @@ export default function AddPropertyScreen() {
   const [state, setState] = useState('FL');
   const [zip, setZip] = useState('');
   const [notes, setNotes] = useState('');
+  const [exteriorOnly, setExteriorOnly] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export default function AddPropertyScreen() {
       state: state.trim().toUpperCase(),
       zip: zip.trim() || null,
       notes: notes.trim() || null,
+      exterior_only: exteriorOnly,
       created_by: profile?.id,
     });
     if (err) { setError(err.message); setSaving(false); return; }
@@ -148,6 +151,23 @@ export default function AddPropertyScreen() {
             />
           </View>
 
+          <TouchableOpacity
+            style={styles.toggleRow}
+            onPress={() => setExteriorOnly((v) => !v)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Exterior inspection only</Text>
+              <Text style={styles.toggleSub}>No interior access (e.g. vacant lots, exterior-only units)</Text>
+            </View>
+            <Switch
+              value={exteriorOnly}
+              onValueChange={setExteriorOnly}
+              trackColor={{ false: Colors.border, true: Colors.primary }}
+              thumbColor="#fff"
+            />
+          </TouchableOpacity>
+
           {error && (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
@@ -207,6 +227,20 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   inputMultiline: { height: 80, textAlignVertical: 'top' },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  toggleInfo: { flex: 1 },
+  toggleLabel: { ...Typography.body, fontWeight: '600', color: Colors.textPrimary },
+  toggleSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

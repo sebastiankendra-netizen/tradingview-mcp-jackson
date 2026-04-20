@@ -140,8 +140,19 @@ export const CHECKLIST_CATEGORIES: ChecklistCategory[] = [
   },
 ];
 
+export const EXTERIOR_ONLY_CATEGORIES = new Set([
+  'Exterior',
+  'Common Areas / Amenities',
+  'Safety & Compliance',
+]);
+
+export const EXTERIOR_CHECKLIST_CATEGORIES = CHECKLIST_CATEGORIES.filter(
+  (cat) => EXTERIOR_ONLY_CATEGORIES.has(cat.name),
+);
+
 /** Flatten all checklist items with their category and sort order */
-export function buildChecklistItems(inspectionId: string) {
+export function buildChecklistItems(inspectionId: string, exteriorOnly = false) {
+  const categories = exteriorOnly ? EXTERIOR_CHECKLIST_CATEGORIES : CHECKLIST_CATEGORIES;
   const rows: {
     inspection_id: string;
     category: string;
@@ -151,7 +162,7 @@ export function buildChecklistItems(inspectionId: string) {
   }[] = [];
 
   let order = 0;
-  for (const cat of CHECKLIST_CATEGORIES) {
+  for (const cat of categories) {
     for (const item of cat.items) {
       rows.push({
         inspection_id: inspectionId,

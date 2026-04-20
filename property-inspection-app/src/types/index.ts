@@ -23,6 +23,7 @@ export interface Property {
   unit_count?: number;
   photo_url?: string;
   notes?: string;
+  exterior_only?: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;
