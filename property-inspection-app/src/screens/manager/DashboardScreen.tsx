@@ -189,10 +189,7 @@ export default function DashboardScreen() {
           <>
             {/* Header */}
             <View style={styles.topBar}>
-              <View>
-                <Text style={styles.greeting}>Good morning,</Text>
-                <Text style={styles.name}>{profile?.full_name ?? 'Manager'}</Text>
-              </View>
+              <Text style={styles.name}>{profile?.full_name ?? 'Manager'}</Text>
               <View style={styles.topActions}>
                 <TouchableOpacity
                   style={styles.manualsBtn}
@@ -218,9 +215,6 @@ export default function DashboardScreen() {
                       <Text style={styles.badgeText}>{stats.openIssues}</Text>
                     </View>
                   )}
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.iconBtn} onPress={signOut}>
-                  <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
