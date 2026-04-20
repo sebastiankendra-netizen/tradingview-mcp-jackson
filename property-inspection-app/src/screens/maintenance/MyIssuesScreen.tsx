@@ -321,6 +321,9 @@ export default function MyIssuesScreen() {
           <Text style={styles.name}>{profile?.full_name ?? 'Tech'}</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('Tasks')} style={styles.headerBtn}>
+            <Ionicons name="checkbox-outline" size={22} color={Colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Manuals')} style={styles.headerBtn}>
             <Ionicons name="book-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>

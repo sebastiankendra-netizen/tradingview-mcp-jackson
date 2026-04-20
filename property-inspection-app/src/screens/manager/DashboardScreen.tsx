@@ -196,6 +196,13 @@ export default function DashboardScreen() {
               <View style={styles.topActions}>
                 <TouchableOpacity
                   style={styles.manualsBtn}
+                  onPress={() => navigation.navigate('Tasks')}
+                >
+                  <Ionicons name="checkbox-outline" size={16} color="#fff" />
+                  <Text style={styles.manualsBtnText}>Tasks</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.manualsBtn}
                   onPress={() => navigation.navigate('Manuals')}
                 >
                   <Ionicons name="book-outline" size={16} color="#fff" />

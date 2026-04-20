@@ -10,6 +10,7 @@ import InspectionDetailScreen from '../screens/manager/InspectionDetailScreen';
 import IssuesScreen from '../screens/manager/IssuesScreen';
 import AddIssueScreen from '../screens/manager/AddIssueScreen';
 import ManualsScreen from '../screens/ManualsScreen';
+import TasksScreen from '../screens/TasksScreen';
 
 const Stack = createNativeStackNavigator<ManagerStackParamList>();
 
@@ -67,6 +68,11 @@ export default function ManagerNavigator() {
         name="Manuals"
         component={ManualsScreen}
         options={{ title: 'Company Manuals' }}
+      />
+      <Stack.Screen
+        name="Tasks"
+        component={TasksScreen}
+        options={{ title: 'Task Board' }}
       />
     </Stack.Navigator>
   );

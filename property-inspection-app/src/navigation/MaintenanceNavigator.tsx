@@ -5,6 +5,7 @@ import { MaintenanceStackParamList } from '../types';
 import MyIssuesScreen from '../screens/maintenance/MyIssuesScreen';
 import AddIssueScreen from '../screens/manager/AddIssueScreen';
 import ManualsScreen from '../screens/ManualsScreen';
+import TasksScreen from '../screens/TasksScreen';
 
 const Stack = createNativeStackNavigator<MaintenanceStackParamList>();
 
@@ -32,6 +33,11 @@ export default function MaintenanceNavigator() {
         name="Manuals"
         component={ManualsScreen}
         options={{ title: 'Company Manuals' }}
+      />
+      <Stack.Screen
+        name="Tasks"
+        component={TasksScreen}
+        options={{ title: 'Task Board' }}
       />
     </Stack.Navigator>
   );

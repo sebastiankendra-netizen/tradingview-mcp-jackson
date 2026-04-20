@@ -146,6 +146,23 @@ export interface ChecklistCategory {
   items: string[];
 }
 
+export interface PropertyTask {
+  id: string;
+  property_id: string;
+  title: string;
+  description?: string;
+  assigned_to?: string;
+  created_by?: string;
+  due_date?: string;
+  priority: IssuePriority;
+  status: 'todo' | 'in_progress' | 'done';
+  created_at: string;
+  updated_at: string;
+  property?: Property;
+  assignee?: Profile;
+  creator?: Profile;
+}
+
 export interface CompanyDocument {
   id: string;
   title: string;
@@ -179,6 +196,7 @@ export type ManagerStackParamList = {
   AllIssues: undefined;
   AddIssue: undefined;
   Manuals: undefined;
+  Tasks: undefined;
 };
 
 export type InspectorStackParamList = {
@@ -192,6 +210,7 @@ export type MaintenanceStackParamList = {
   IssueDetail: { issueId: string };
   AddIssue: undefined;
   Manuals: undefined;
+  Tasks: undefined;
 };
 
 // Priority display helpers
