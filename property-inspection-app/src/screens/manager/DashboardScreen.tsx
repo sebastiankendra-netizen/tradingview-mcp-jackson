@@ -200,21 +200,19 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.manualsBtn}
+                  onPress={() => navigation.navigate('AllIssues')}
+                >
+                  <Ionicons name="warning-outline" size={16} color="#fff" />
+                  <Text style={styles.manualsBtnText}>
+                    Issues{stats.openIssues > 0 ? ` (${stats.openIssues})` : ''}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.manualsBtn}
                   onPress={() => navigation.navigate('Manuals')}
                 >
                   <Ionicons name="book-outline" size={16} color="#fff" />
                   <Text style={styles.manualsBtnText}>Manuals</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconBtn}
-                  onPress={() => navigation.navigate('AllIssues')}
-                >
-                  <Ionicons name="warning-outline" size={22} color={Colors.primary} />
-                  {stats.openIssues > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{stats.openIssues}</Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               </View>
             </View>
