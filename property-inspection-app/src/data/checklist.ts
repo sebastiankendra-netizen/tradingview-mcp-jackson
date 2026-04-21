@@ -117,17 +117,6 @@ export const CHECKLIST_CATEGORIES: ChecklistCategory[] = [
     ],
   },
   {
-    name: 'Pool / Outdoor Amenities',
-    items: [
-      'Pool water clarity & chemical balance',
-      'Pool equipment (pump, filter) — operation',
-      'Pool deck — clean, no cracks or trip hazards',
-      'Pool fence / barrier — secure, gate latches',
-      'Pool furniture — condition',
-      'Outdoor lighting at pool area',
-    ],
-  },
-  {
     name: 'Safety & Compliance',
     items: [
       'Fire extinguisher — present, charged & accessible',
