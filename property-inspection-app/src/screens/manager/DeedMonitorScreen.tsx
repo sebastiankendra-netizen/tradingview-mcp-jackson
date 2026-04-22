@@ -71,7 +71,10 @@ export default function DeedMonitorScreen() {
   async function checkAllDeeds() {
     setChecking(true);
     try {
-      const { data, error } = await supabase.functions.invoke('check-deeds');
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('check-deeds', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
       if (error) throw error;
       await load();
       Alert.alert('Check Complete', (data as any)?.message ?? 'Deed check finished.');
