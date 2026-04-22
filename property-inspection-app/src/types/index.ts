@@ -179,6 +179,33 @@ export interface CompanyDocument {
   uploader?: Profile;
 }
 
+export interface DeedSnapshot {
+  id: string;
+  property_id: string;
+  address: string;
+  owner_name?: string;
+  deed_book?: string;
+  deed_page?: string;
+  sale_date?: string;
+  sale_amount?: string;
+  checked_at: string;
+  created_at: string;
+  property?: Property;
+}
+
+export interface DeedAlert {
+  id: string;
+  property_id: string;
+  address: string;
+  field_changed: string;
+  old_value?: string;
+  new_value?: string;
+  detected_at: string;
+  acknowledged_at?: string;
+  acknowledged_by?: string;
+  property?: Property;
+}
+
 // Navigation param types
 export type RootStackParamList = {
   Login: undefined;
@@ -198,6 +225,7 @@ export type ManagerStackParamList = {
   AddIssue: undefined;
   Manuals: undefined;
   Tasks: undefined;
+  DeedMonitor: undefined;
 };
 
 export type InspectorStackParamList = {

@@ -1,0 +1,25 @@
+name: Weekly Deed Check
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'  # Every Monday at 9 AM ET (1 PM UTC)
+  workflow_dispatch:       # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  check-deeds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Edge Function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/check-deeds" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+          body=$(echo "$response" | head -n1)
+          code=$(echo "$response" | tail -n1)
+          echo "Response: $body"
+          echo "Status: $code"
+          if [ "$code" != "200" ]; then
+            echo "Deed check failed with status $code"
+            exit 1
+          fi

@@ -11,6 +11,7 @@ import IssuesScreen from '../screens/manager/IssuesScreen';
 import AddIssueScreen from '../screens/manager/AddIssueScreen';
 import ManualsScreen from '../screens/ManualsScreen';
 import TasksScreen from '../screens/TasksScreen';
+import DeedMonitorScreen from '../screens/manager/DeedMonitorScreen';
 
 const Stack = createNativeStackNavigator<ManagerStackParamList>();
 
@@ -73,6 +74,11 @@ export default function ManagerNavigator() {
         name="Tasks"
         component={TasksScreen}
         options={{ title: 'Task Board' }}
+      />
+      <Stack.Screen
+        name="DeedMonitor"
+        component={DeedMonitorScreen}
+        options={{ title: 'Deed Monitor' }}
       />
     </Stack.Navigator>
   );

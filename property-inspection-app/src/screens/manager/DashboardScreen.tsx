@@ -214,6 +214,13 @@ export default function DashboardScreen() {
                   <Ionicons name="book-outline" size={16} color="#fff" />
                   <Text style={styles.manualsBtnText}>Manuals</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.manualsBtn, { backgroundColor: Colors.danger }]}
+                  onPress={() => navigation.navigate('DeedMonitor')}
+                >
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#fff" />
+                  <Text style={styles.manualsBtnText}>Deed Monitor</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
